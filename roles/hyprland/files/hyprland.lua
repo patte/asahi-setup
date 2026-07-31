@@ -125,6 +125,45 @@ hl.gesture({
     action    = "workspace",
 })
 
+-- Zoom the screen around the cursor, macOS style. Declared here rather than
+-- down with the keybinds because the gesture callback below closes over them,
+-- and a Lua closure cannot capture a local that is not in scope yet.
+-- ZOOM_MAX is our own ceiling. Hyprland declares cursor:zoom_factor with a max
+-- of 10, but does not enforce it — larger values are accepted and rendered.
+-- 1 is a real floor, though: below it the zoom is meaningless.
+local ZOOM_MAX          = 15
+-- Per wheel notch, multiplicative: n notches land on ZOOM_STEP^n. Mouse only.
+local ZOOM_STEP         = 1.1
+-- Per unit of swipe delta, in the exponent, so a whole swipe comes out as
+-- exp(rate * distance) and the zoom-per-centimetre stays constant. Trackpad only.
+local ZOOM_GESTURE_RATE = 0.008
+
+-- mainMod + three-finger vertical swipe. Deliberately not pinch, and not
+-- mainMod + two-finger scroll, which cannot work at all: scroll reaches the
+-- compositor as an axis event with source FINGER, mouse_up/mouse_down binds
+-- are only dispatched for source WHEEL, and the gesture engine is fed purely
+-- by libinput swipe and pinch events, which start at three fingers.
+--
+-- This drives the zoom by hand rather than using the built-in cursor_zoom
+-- action, which ignores its own live mode unless the event is a pinch and so
+-- would give a swipe just one stepped multiply at gesture start. The callback
+-- gets the per-event swipe delta, so scaling the factor exponentially by it
+-- keeps the zoom-per-centimetre constant however libinput chops up the swipe.
+-- Fingers up is delta.y < 0, hence zooming in.
+hl.gesture({
+    fingers   = 3,
+    direction = "vertical",
+    mods      = "SUPER",
+    action    = {
+        update = function(e)
+            local dy      = (e.delta and e.delta.y) or 0
+            local current = hl.get_config("cursor:zoom_factor") or 1
+            local target  = current * math.exp(-dy * ZOOM_GESTURE_RATE)
+            hl.config({ cursor = { zoom_factor = math.max(1, math.min(ZOOM_MAX, target)) } })
+        end,
+    },
+})
+
 ---------------------
 ---- KEYBINDINGS ----
 ---------------------
@@ -149,6 +188,12 @@ hl.bind(mainMod .. " + right", hl.dsp.focus({ direction = "right" }))
 hl.bind(mainMod .. " + up",    hl.dsp.focus({ direction = "up" }))
 hl.bind(mainMod .. " + down",  hl.dsp.focus({ direction = "down" }))
 
+-- Move the focused window within the layout, same keys plus SHIFT
+hl.bind(mainMod .. " + SHIFT + left",  hl.dsp.window.move({ direction = "left" }))
+hl.bind(mainMod .. " + SHIFT + right", hl.dsp.window.move({ direction = "right" }))
+hl.bind(mainMod .. " + SHIFT + up",    hl.dsp.window.move({ direction = "up" }))
+hl.bind(mainMod .. " + SHIFT + down",  hl.dsp.window.move({ direction = "down" }))
+
 -- Workspaces on mainMod + [0-9], move the active window with SHIFT
 for i = 1, 10 do
     local key = i % 10 -- 10 maps to key 0
@@ -160,17 +205,46 @@ end
 hl.bind(mainMod .. " + S",         hl.dsp.workspace.toggle_special("magic"))
 hl.bind(mainMod .. " + SHIFT + S", hl.dsp.window.move({ workspace = "special:magic" }))
 
-hl.bind(mainMod .. " + mouse_down", hl.dsp.focus({ workspace = "e+1" }))
-hl.bind(mainMod .. " + mouse_up",   hl.dsp.focus({ workspace = "e-1" }))
+-- Scroll through workspaces. On ALT because plain mainMod + scroll is the zoom
+-- below, which is the more valuable use of that gesture.
+hl.bind(mainMod .. " + ALT + mouse_down", hl.dsp.focus({ workspace = "e+1" }))
+hl.bind(mainMod .. " + ALT + mouse_up",   hl.dsp.focus({ workspace = "e-1" }))
+
+-- Screen zoom on scroll. Mouse only — the trackpad goes through the
+-- three-finger swipe gesture above, which is what actually gets used here. The two defaults
+-- that matter are already right: zoom_detached_camera holds the view still
+-- while the pointer moves around inside it and pans only once it reaches the
+-- edge (macOS's "zoom follows pointer at edge"), and zoom_rigid = false is what
+-- allows that panning at all. The factor is an animated property, so each notch
+-- eases rather than snaps. ZOOM_STEP and ZOOM_MAX are up in the gesture section.
+local function zoomBy(factor)
+    return function()
+        local current = hl.get_config("cursor:zoom_factor") or 1
+        hl.config({ cursor = { zoom_factor = math.max(1, math.min(ZOOM_MAX, current * factor)) } })
+    end
+end
+
+hl.bind(mainMod .. " + mouse_up",   zoomBy(ZOOM_STEP))
+hl.bind(mainMod .. " + mouse_down", zoomBy(1 / ZOOM_STEP))
+hl.bind(mainMod .. " + Z", function() hl.config({ cursor = { zoom_factor = 1 } }) end)
 
 -- Move/resize with mainMod + LMB/RMB
 hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(),   { mouse = true })
 hl.bind(mainMod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 
--- Screenshots. Print grabs a region to the clipboard, SHIFT + Print the whole
--- screen to a file.
-hl.bind("Print",         hl.dsp.exec_cmd('grim -g "$(slurp)" - | wl-copy'))
-hl.bind("SHIFT + Print", hl.dsp.exec_cmd('grim "$HOME/Pictures/screenshot-$(date +%Y%m%d-%H%M%S).png"'))
+-- Screenshots. An Apple keyboard has no Print key, so P carries these; the
+-- Print pair stays bound for an external keyboard that does have one.
+-- The region grab holds slurp's output in a variable and && s on it, so
+-- cancelling the drag with Escape aborts instead of handing grim an empty
+-- geometry and putting a broken image on the clipboard.
+local shotScreen = 'grim "$HOME/Pictures/screenshot-$(date +%Y%m%d-%H%M%S).png"'
+local shotRegion = 'geom=$(slurp) && grim -g "$geom" - | wl-copy'
+
+hl.bind(mainMod .. " + SHIFT + P", hl.dsp.exec_cmd(shotScreen))
+hl.bind(mainMod .. " + CTRL + P",  hl.dsp.exec_cmd(shotRegion))
+
+hl.bind("Print",         hl.dsp.exec_cmd(shotScreen))
+hl.bind("SHIFT + Print", hl.dsp.exec_cmd(shotRegion))
 
 -- Laptop keys. GNOME handles these itself; here they have to be bound.
 -- `locked` means they keep working with the screen locked.
