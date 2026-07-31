@@ -53,7 +53,7 @@ fi
 
 # A kernel compile takes a long time and replaces the running kernel. Make it
 # a deliberate act even though the tag already gates it.
-for t in "${tags[@]:-}"; do
+for t in ${tags[@]+"${tags[@]}"}; do
     if [[ $t == fairydust ]]; then
         read -rp "Build and install the fairydust kernel? [y/N] " reply
         [[ ${reply,,} == y* ]] || { echo "aborted"; exit 0; }
@@ -82,7 +82,11 @@ if ! sudo -n true 2>/dev/null; then
     cmd+=(--ask-become-pass)
 fi
 
-cmd+=("${passthru[@]:-}")
+# Guard the expansion: "${passthru[@]:-}" on an empty array yields one empty
+# argument, which ansible-playbook rejects as an unrecognized positional.
+if [[ ${#passthru[@]} -gt 0 ]]; then
+    cmd+=("${passthru[@]}")
+fi
 
 echo "==> ${cmd[*]}"
 exec "${cmd[@]}"
