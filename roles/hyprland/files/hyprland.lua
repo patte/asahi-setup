@@ -137,6 +137,60 @@ local ZOOM_STEP         = 1.1
 -- Per unit of swipe delta, in the exponent, so a whole swipe comes out as
 -- exp(rate * distance) and the zoom-per-centimetre stays constant. Trackpad only.
 local ZOOM_GESTURE_RATE = 0.008
+-- Inertia, for the swipe only. Lifting the fingers hands the zoom over to a
+-- velocity that decays exponentially with this time constant, so the zoom keeps
+-- running and eases out instead of stopping dead. ~4.5 time constants until it
+-- is spent, so 220 gives a coast of about a second.
+--
+-- Same model Apple uses: UIScrollView.decelerationRate is a per-millisecond
+-- factor on velocity, i.e. exponential decay. Its two documented values convert
+-- to time constants of -1/ln(rate): .normal = 0.998 is 499ms, .fast = 0.99 is
+-- 99ms. 220 sits between them, nearer fast. Apple publishes no constant for the
+-- zoom inertia itself, so those are the closest documented reference points.
+-- .fast was tried here and is too abrupt; 220 is the keeper.
+local ZOOM_FLING_TIME   = 220   -- ms
+-- Ceiling on what one fling may add, as an exponent: e^0.8 is about 2.2x. The
+-- coast is the integral of a decaying velocity, which is velocity * time
+-- constant, so capping the handover velocity at MAX/TIME bounds the whole
+-- coast no matter how hard the swipe was flicked.
+local ZOOM_FLING_MAX    = 0.8
+local ZOOM_FLING_TICK   = 8     -- ms between coast frames, ~120Hz
+-- Below this exponent-per-ms a fling is really a slow release, so it just stops.
+local ZOOM_FLING_MIN    = 0.00005
+
+-- Zoom by an exponent, clamped. Returns where it landed so the coast can tell
+-- it has hit a limit and stop pushing against it.
+local function zoomByExponent(exponent)
+    local current = hl.get_config("cursor:zoom_factor") or 1
+    local target  = math.max(1, math.min(ZOOM_MAX, current * math.exp(exponent)))
+    hl.config({ cursor = { zoom_factor = target } })
+    return target
+end
+
+-- Handover velocity for the coast, in exponent per ms, and the timer that
+-- burns it off. Declared before the timer because its own callback disables it.
+local zoomVelocity, zoomLastTime = 0, nil
+local zoomCoast
+
+zoomCoast = hl.timer(function()
+    zoomVelocity = zoomVelocity * math.exp(-ZOOM_FLING_TICK / ZOOM_FLING_TIME)
+
+    if math.abs(zoomVelocity) < ZOOM_FLING_MIN then
+        zoomVelocity = 0
+        zoomCoast:set_enabled(false)
+        return
+    end
+
+    -- Stop early at either limit, rather than spinning while clamped.
+    local landed = zoomByExponent(zoomVelocity * ZOOM_FLING_TICK)
+    if landed <= 1 or landed >= ZOOM_MAX then
+        zoomVelocity = 0
+        zoomCoast:set_enabled(false)
+    end
+end, { timeout = ZOOM_FLING_TICK, type = "repeat" })
+
+-- Created armed, and there is nothing to coast yet.
+zoomCoast:set_enabled(false)
 
 -- mainMod + three-finger vertical swipe. Deliberately not pinch, and not
 -- mainMod + two-finger scroll, which cannot work at all: scroll reaches the
@@ -155,11 +209,39 @@ hl.gesture({
     direction = "vertical",
     mods      = "SUPER",
     action    = {
+        -- Touching down catches an in-flight coast, the way it does on a phone.
+        start = function()
+            zoomCoast:set_enabled(false)
+            zoomVelocity, zoomLastTime = 0, nil
+        end,
+
         update = function(e)
-            local dy      = (e.delta and e.delta.y) or 0
-            local current = hl.get_config("cursor:zoom_factor") or 1
-            local target  = current * math.exp(-dy * ZOOM_GESTURE_RATE)
-            hl.config({ cursor = { zoom_factor = math.max(1, math.min(ZOOM_MAX, target)) } })
+            local dy       = (e.delta and e.delta.y) or 0
+            local exponent = -dy * ZOOM_GESTURE_RATE
+            zoomByExponent(exponent)
+
+            -- Track velocity as a smoothed exponent-per-ms. The smoothing is
+            -- what keeps one jittery last event from defining the whole fling.
+            local now = e.time_ms
+            if now and zoomLastTime and now > zoomLastTime then
+                local instant = exponent / (now - zoomLastTime)
+                zoomVelocity  = zoomVelocity * 0.7 + instant * 0.3
+            end
+            zoomLastTime = now
+        end,
+
+        finish = function()
+            local cap = ZOOM_FLING_MAX / ZOOM_FLING_TIME
+            if math.abs(zoomVelocity) < ZOOM_FLING_MIN then
+                zoomVelocity = 0
+                return
+            end
+
+            if math.abs(zoomVelocity) > cap then
+                zoomVelocity = zoomVelocity > 0 and cap or -cap
+            end
+
+            zoomCoast:set_enabled(true)
         end,
     },
 })
