@@ -26,6 +26,41 @@ atuin_version: v18.18.1
 # COPR role should use this too.
 copr_chroot: "fedora-{{ ansible_facts['distribution_major_version'] }}-{{ ansible_facts['architecture'] }}"
 
+# --- hyprland ---------------------------------------------------------------
+# Retired from Fedora, so it comes from a COPR. sdegler ships the whole hypr
+# stack (its own aquamarine/hyprutils/hyprlang/hyprgraphics), which is why it
+# works where Fedora's stale support libraries do not, and it had a
+# fedora-44-aarch64 build of 0.56.1 the day upstream tagged it. Reuses
+# copr_chroot above — Asahi Remix is plain Fedora as far as COPR is concerned.
+hyprland_copr: sdegler/hyprland
+hyprland_copr_baseurl: "https://download.copr.fedorainfracloud.org/results/{{ hyprland_copr }}/{{ copr_chroot }}/"
+hyprland_copr_gpgkey: "https://download.copr.fedorainfracloud.org/results/{{ hyprland_copr }}/pubkey.gpg"
+
+# The allowlist that keeps this repo from winning packages it should not. Note
+# xdg-desktop-portal-hyprland does not match hypr*.
+hyprland_copr_includepkgs:
+  - hypr*
+  - aquamarine
+  - xdg-desktop-portal-hyprland
+
+# From the COPR: things Fedora has no package for.
+hyprland_copr_packages:
+  - hyprland
+  - xdg-desktop-portal-hyprland
+  - hyprpolkitagent
+
+# From Fedora: everything a bare compositor does not come with. Stock configs
+# for now — bar/menu/notification styling is a later pass.
+hyprland_packages:
+  - waybar
+  - wofi
+  - mako
+  - grim
+  - slurp
+  - wl-clipboard
+  - brightnessctl
+  - playerctl
+
 # --- rust -------------------------------------------------------------------
 rust_toolchain: stable
 

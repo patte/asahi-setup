@@ -38,6 +38,7 @@ From there `./run.sh` should get everything else back.
 | `tailscale` | Tailscale repo + key, daemon enabled |
 | `keyswaps` | Builds keyd from source into `/usr/local`, installs the mac-style keymap, enables it |
 | `titdb` | Builds trackpad-is-too-damn-big, installs binary + unit, enables it |
+| `hyprland` | sdegler COPR (scoped), the hypr stack, waybar/wofi/mako, `hyprland.lua` |
 | `fairydust` | Builds and installs the patched Asahi kernel. Tagged `never`, needs `rust` |
 
 ### fairydust needs rust
@@ -53,6 +54,25 @@ de-duplicates a role that appears twice in a play — so with `fairydust` tagged
 standalone one, which `--tags fairydust` does not select. The kernel build
 would then run without a toolchain. Handling it in `run.sh` is less clever and
 actually works.
+
+### hyprland sits next to GNOME
+
+Installing it adds `/usr/share/wayland-sessions/hyprland.desktop`; nothing about
+the GNOME session changes. Log out, click the gear at the GDM password prompt,
+pick Hyprland. GDM remembers the choice per user, so GNOME stays the default
+until it is picked deliberately, and a bad session is one login away from being
+GNOME again. keyd carries over unchanged — it rewrites below the compositor.
+
+The COPR is scoped with `includepkgs` to the hypr stack only. It also builds
+kitty, waybar, qt6ct, uwsm, cliphist and swww, which Fedora ships too, and with
+no repo priority the higher version would silently win.
+
+Config is `roles/hyprland/files/hyprland.lua` — Hyprland 0.5x reads
+`~/.config/hypr/hyprland.lua` and only falls back to the old `hyprland.conf`
+when there is no `.lua`. It is deliberately minimal: waybar, wofi and mako run
+on stock configs, and there is no wallpaper, colour scheme or animation tuning
+yet. Not done yet, on purpose: a lock screen (`hyprlock`), an idle daemon
+(`hypridle`) and lid/suspend behaviour.
 
 ## Source of truth
 

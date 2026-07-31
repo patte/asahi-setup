@@ -31,6 +31,11 @@
     - role: titdb
       tags: [titdb]
 
+    # Additive and reversible: it adds a session next to GNOME and changes
+    # nothing about the GNOME one, so it needs no `never` guard.
+    - role: hyprland
+      tags: [hyprland]
+
     # Tagged `never`: a full kernel compile is not something a routine run
     # should ever trigger. Only `./run.sh fairydust` reaches it.
     - role: fairydust

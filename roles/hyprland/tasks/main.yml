@@ -1,0 +1,67 @@
+---
+# Hyprland is not installable from Fedora: it was retired on 2026-09-30 by the
+# fails-to-install automation, and the hypr* support libraries Fedora still
+# ships are several major versions behind what a current Hyprland needs.
+# Building it from source would mean seven CMake projects into a prefix
+# shadowing Fedora's, redone on every release — this is the one place in here
+# where a COPR beats building it ourselves.
+#
+# 0.51 is the hard floor on this hardware: that is the release that fixed
+# explicit sync against Asahi's split-node GPU driver. Do not point this at
+# solopasha/hyprland, which is stale at exactly 0.51.
+- name: Import the hyprland COPR signing key
+  become: true
+  ansible.builtin.rpm_key:
+    key: "{{ hyprland_copr_gpgkey }}"
+    state: present
+
+# Deliberately not community.general.copr, unlike the ghostty role. This COPR
+# also ships kitty, waybar, qt6ct, uwsm, cliphist and swww, which Fedora ships
+# too, and no repo priority is set — so highest version wins and a later
+# `dnf install waybar` would quietly pull the COPR build. yum_repository can
+# express includepkgs; the copr module cannot.
+- name: Add the hyprland COPR, scoped to the hypr stack
+  become: true
+  ansible.builtin.yum_repository:
+    name: copr-hyprland
+    description: "COPR {{ hyprland_copr }} (scoped to the hypr stack)"
+    baseurl: "{{ hyprland_copr_baseurl }}"
+    gpgkey: "{{ hyprland_copr_gpgkey }}"
+    gpgcheck: true
+    includepkgs: "{{ hyprland_copr_includepkgs }}"
+    enabled: true
+
+# The COPR half is the compositor and the pieces Fedora has no package for at
+# all; the rest comes from Fedora and is excluded from the COPR above.
+#
+# Weak deps are left on: hyprland Recommends mesa-dri-drivers, polkit and the
+# qt6-qtwayland-if-qt6 pair, which are all wanted. Two consequences worth
+# knowing — Fedora's kitty rides along (recommended, and the COPR's own kitty is
+# blocked by includepkgs), and hyprland-uwsm is dropped as unsatisfiable, since
+# it needs uwsm, which Fedora does not package and includepkgs blocks here. So
+# GDM gets one Hyprland entry, not two.
+- name: Install the hyprland stack
+  become: true
+  ansible.builtin.dnf5:
+    name: "{{ hyprland_copr_packages + hyprland_packages }}"
+    state: present
+
+- name: Ensure the hypr config directory exists
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.config/hypr"
+    state: directory
+    mode: "0755"
+
+# Hyprland 0.5x looks for ~/.config/hypr/hyprland.lua first and only falls back
+# to the old hyprlang hyprland.conf when no .lua exists. New config, so it is
+# the lua one — do not add a hyprland.conf next to it, it would be dead weight.
+- name: Install the hyprland config
+  ansible.builtin.copy:
+    src: hyprland.lua
+    dest: "{{ ansible_facts['user_dir'] }}/.config/hypr/hyprland.lua"
+    mode: "0644"
+
+# Nothing to enable or start: the package drops hyprland.desktop into
+# /usr/share/wayland-sessions/, so the session shows up at the GDM gear icon
+# next to GNOME. GDM remembers the last choice per user, so GNOME stays the
+# default until it is picked deliberately.
