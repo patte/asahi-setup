@@ -40,7 +40,8 @@ From there `./run.sh` should get everything else back.
 | `base` | The packages actually installed by hand, `~/src` |
 | `shell` | zsh + login shell, `.zshrc` / `.zshenv`, atuin and its config |
 | `rust` | rustup, the default toolchain, `rust-src`, `bindgen-cli` |
-| `ghostty` | scottames COPR, ghostty, config + custom Ayu theme |
+| `ghostty` | scottames COPR, ghostty, config (uses the built-in Ayu theme) |
+| `claude` | Claude Code via the native installer, `settings.json`, memory files |
 | `vscode` | Microsoft repo + key, `code` |
 | `tailscale` | Tailscale repo + key, daemon enabled |
 | `keyswaps` | Builds keyd from source into `/usr/local`, installs the mac-style keymap, enables it |
@@ -94,7 +95,6 @@ done | sed 's/-[0-9]*:.*$//' | sort -u
   running a `-asahi-fairydust` kernel, so it will not pick up new upstream
   commits on its own. That is intentional — an unattended kernel rebuild is not
   something a config run should decide to do.
-- **Signal** and **Hyprland** — deliberately out of scope for now.
 
 ## Rebuild triggers
 
@@ -108,9 +108,19 @@ Source builds are guarded so re-runs are cheap. To force one:
 ## Not in here
 
 Secrets and identity, deliberately. `~/.ssh` keys (including the FIDO
-`id_ed25519_sk`), the atuin sync key, and any tokens are not captured — the
-`shell` role only creates `~/.ssh` with the right mode so the agent-socket
-symlink in `.zshrc` works. Restore those from wherever you keep them.
+`id_ed25519_sk`), the atuin sync key, `~/.claude/.credentials.json` and any
+tokens are not captured — the `shell` role only creates `~/.ssh` with the right
+mode so the agent-socket symlink in `.zshrc` works. Restore those from wherever
+you keep them, and log back into Claude Code by running `claude`.
+
+Session state is also out: Claude Code's `history.jsonl`, `sessions/`,
+`projects/` transcripts, shell snapshots and caches. The memory files under
+`projects/-home-patte/memory/` **are** kept — they are notes, not state.
+
+One thing worth knowing rather than discovering: the captured
+`~/.claude/settings.json` sets `permissions.defaultMode` to
+`bypassPermissions`, so a rebuild restores Claude Code to a no-prompt mode
+without saying anything about it.
 
 ## Known drift
 

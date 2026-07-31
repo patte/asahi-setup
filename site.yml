@@ -16,6 +16,9 @@
     - role: ghostty
       tags: [ghostty]
 
+    - role: claude
+      tags: [claude]
+
     - role: vscode
       tags: [vscode]
 

@@ -22,6 +22,11 @@ atuin_version: v18.18.1
 # --- rust -------------------------------------------------------------------
 rust_toolchain: stable
 
+# --- claude -----------------------------------------------------------------
+# The project-scoped memory directory. The odd path component is the working
+# directory with slashes replaced by dashes, so it tracks $HOME.
+claude_memory_dir: "/home/{{ target_user }}/.claude/projects/-home-{{ target_user }}/memory"
+
 # --- keyswaps ---------------------------------------------------------------
 keyd_repo: https://github.com/rvaiya/keyd.git
 keyd_version: v2.6.0

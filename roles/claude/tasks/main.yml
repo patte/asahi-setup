@@ -1,0 +1,45 @@
+---
+# Claude Code: the native installer (not npm) — it drops versioned builds in
+# ~/.local/share/claude/versions and symlinks ~/.local/bin/claude at one.
+# ~/.local/bin is already on PATH via .zshrc (shell role).
+- name: Install Claude Code
+  ansible.builtin.shell:
+    cmd: curl -fsSL https://claude.ai/install.sh | bash
+    creates: "{{ ansible_user_dir }}/.local/bin/claude"
+
+- name: Ensure the Claude config directory exists
+  ansible.builtin.file:
+    path: "{{ ansible_user_dir }}/.claude"
+    state: directory
+    mode: "0755"
+
+# NOTE: this settings file sets permissions.defaultMode to bypassPermissions and
+# skipDangerousModePermissionPrompt to true — restoring it puts Claude Code back
+# into a mode where it does not ask before running tools. Intentional here, but
+# worth knowing that a rebuild re-enables it silently.
+#
+# The Bash hooks shell out to `atuin`, so this role is only fully functional
+# after the shell role has installed it.
+- name: Install Claude Code settings
+  ansible.builtin.copy:
+    src: settings.json
+    dest: "{{ ansible_user_dir }}/.claude/settings.json"
+    mode: "0644"
+
+- name: Ensure the memory directory exists
+  ansible.builtin.file:
+    path: "{{ claude_memory_dir }}"
+    state: directory
+    mode: "0755"
+
+# Cross-session notes. Not machine state — losing these loses context that was
+# expensive to rebuild, so they are worth carrying across a reinstall.
+- name: Install the memory files
+  ansible.builtin.copy:
+    src: memory/
+    dest: "{{ claude_memory_dir }}/"
+    mode: "0644"
+
+# Deliberately not managed: ~/.claude/.credentials.json (auth token),
+# history.jsonl, sessions/, projects/ transcripts, shell-snapshots/ and caches.
+# Log in again after a rebuild with `claude`.

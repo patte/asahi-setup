@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-ROLES=(base shell rust ghostty vscode tailscale keyswaps titdb fairydust)
+ROLES=(base shell rust ghostty claude vscode tailscale keyswaps titdb fairydust)
 
 usage() {
     cat <<EOF

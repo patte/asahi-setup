@@ -11,20 +11,15 @@
     name: ghostty
     state: present
 
-- name: Ensure the ghostty config directories exist
+- name: Ensure the ghostty config directory exists
   ansible.builtin.file:
-    path: "{{ ansible_user_dir }}/.config/ghostty/themes"
+    path: "{{ ansible_user_dir }}/.config/ghostty"
     state: directory
     mode: "0755"
 
+# theme = Ayu in here is ghostty's built-in, so no theme files are shipped.
 - name: Install the ghostty config
   ansible.builtin.copy:
     src: config.ghostty
     dest: "{{ ansible_user_dir }}/.config/ghostty/config.ghostty"
-    mode: "0644"
-
-- name: Install the custom theme
-  ansible.builtin.copy:
-    src: themes/ayu-dark-custom
-    dest: "{{ ansible_user_dir }}/.config/ghostty/themes/ayu-dark-custom"
     mode: "0644"
