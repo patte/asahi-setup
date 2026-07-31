@@ -33,7 +33,7 @@ From there `./run.sh` should get everything else back.
 | `shell` | zsh + login shell, `.zshrc` / `.zshenv`, atuin and its config |
 | `rust` | rustup, the default toolchain, `rust-src`, `bindgen-cli` |
 | `ghostty` | scottames COPR, ghostty, config (uses the built-in Ayu theme) |
-| `claude` | Claude Code via the native installer, `settings.json`, memory files |
+| `claude` | Claude Code via the native installer and `settings.json` |
 | `vscode` | Microsoft repo + key, `code` |
 | `tailscale` | Tailscale repo + key, daemon enabled |
 | `keyswaps` | Builds keyd from source into `/usr/local`, installs the mac-style keymap, enables it |

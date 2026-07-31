@@ -26,20 +26,7 @@
     dest: "{{ ansible_user_dir }}/.claude/settings.json"
     mode: "0644"
 
-- name: Ensure the memory directory exists
-  ansible.builtin.file:
-    path: "{{ claude_memory_dir }}"
-    state: directory
-    mode: "0755"
-
-# Cross-session notes. Not machine state — losing these loses context that was
-# expensive to rebuild, so they are worth carrying across a reinstall.
-- name: Install the memory files
-  ansible.builtin.copy:
-    src: memory/
-    dest: "{{ claude_memory_dir }}/"
-    mode: "0644"
-
 # Deliberately not managed: ~/.claude/.credentials.json (auth token),
-# history.jsonl, sessions/, projects/ transcripts, shell-snapshots/ and caches.
-# Log in again after a rebuild with `claude`.
+# history.jsonl, sessions/, projects/ transcripts, shell-snapshots/, caches —
+# and the memory files under projects/*/memory/, which stay local to this
+# machine. Log in again after a rebuild with `claude`.

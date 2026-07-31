@@ -1,2 +1,0 @@
-- [Prefers source builds over third-party repos](prefers-source-builds-over-third-party-repos.md) — compile from upstream into ~/src rather than enabling a COPR, when the build is easy
-- [keyd mac-style copy-paste](keyd-mac-style-copy-paste.md) — Super+C/V/X and Caps-as-Ctrl, all in keyd on the Fedora Asahi GNOME box; docs in ~/src/keyswaps
