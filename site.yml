@@ -7,6 +7,12 @@
     - role: base
       tags: [base]
 
+    - role: shell
+      tags: [shell]
+
+    - role: rust
+      tags: [rust]
+
     - role: ghostty
       tags: [ghostty]
 

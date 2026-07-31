@@ -1,0 +1,44 @@
+---
+# The Rust toolchain, factored out of the old prepare-asahi-fedora.sh. The
+# fairydust kernel build needs it (rust-src + bindgen specifically), but it is
+# useful on its own, so it is a role rather than a step inside fairydust.
+
+- name: Install rustup
+  become: true
+  ansible.builtin.dnf5:
+    name: rustup
+    state: present
+
+# Fedora's rustup package ships rustup-init; this is what creates ~/.cargo.
+# --no-modify-path because .zshenv already sources ~/.cargo/env (shell role).
+- name: Initialise the rustup toolchain
+  ansible.builtin.command:
+    cmd: rustup-init -y --no-modify-path
+    creates: "{{ ansible_user_dir }}/.cargo/bin/rustup"
+
+- name: Set the default toolchain
+  ansible.builtin.command:
+    cmd: "{{ ansible_user_dir }}/.cargo/bin/rustup default {{ rust_toolchain }}"
+  register: rust_default
+  changed_when: "'unchanged' not in rust_default.stdout"
+
+# The kernel's Rust support needs the standard library source to build against.
+- name: Add the rust-src component
+  ansible.builtin.command:
+    cmd: "{{ ansible_user_dir }}/.cargo/bin/rustup component add rust-src"
+  register: rust_src
+  changed_when: "'is up to date' not in rust_src.stdout"
+
+- name: Install bindgen-cli
+  ansible.builtin.command:
+    cmd: "{{ ansible_user_dir }}/.cargo/bin/cargo install bindgen-cli"
+    creates: "{{ ansible_user_dir }}/.cargo/bin/bindgen"
+
+- name: Report the toolchain
+  ansible.builtin.command: "{{ ansible_user_dir }}/.cargo/bin/rustc --version"
+  register: rustc_version
+  changed_when: false
+
+- name: Show the installed rustc
+  ansible.builtin.debug:
+    msg: "{{ rustc_version.stdout }}"

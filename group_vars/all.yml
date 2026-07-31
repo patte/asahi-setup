@@ -7,13 +7,20 @@ src_dir: "/home/{{ target_user }}/src"
 # --- base -------------------------------------------------------------------
 base_packages:
   - dnf-plugins-core
-  - zsh
   - btop
   - neovim
   - gh
   - yubikey-manager
 
+# --- shell ------------------------------------------------------------------
+# zsh itself is installed by the shell role, since that role owns the config.
 login_shell: /usr/bin/zsh
+# Pinned: .zshrc sources ~/.atuin/bin/env, which only the upstream cargo-dist
+# installer produces. Fedora's atuin package installs to /usr/bin instead.
+atuin_version: v18.18.1
+
+# --- rust -------------------------------------------------------------------
+rust_toolchain: stable
 
 # --- keyswaps ---------------------------------------------------------------
 keyd_repo: https://github.com/rvaiya/keyd.git

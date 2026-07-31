@@ -3,6 +3,25 @@
 # a moving upstream branch, installs it outside RPM, rewrites DTBs and updates
 # m1n1. It is tagged `never` in site.yml and only runs on an explicit
 # `./run.sh fairydust`.
+#
+# The C build dependencies are installed by the build script itself (its step
+# 1/4), and the Rust toolchain comes from the `rust` role — run.sh pulls that
+# tag in automatically whenever fairydust is requested.
+
+- name: Check for the Rust toolchain
+  ansible.builtin.stat:
+    path: "{{ ansible_user_dir }}/.cargo/bin/{{ item }}"
+  register: fairydust_rust
+  loop:
+    - cargo
+    - bindgen
+
+- name: Require the rust role to have run first
+  ansible.builtin.fail:
+    msg: >-
+      The kernel build needs cargo and bindgen in ~/.cargo/bin.
+      Run `./run.sh rust` first.
+  when: fairydust_rust.results | rejectattr('stat.exists') | list | length > 0
 
 # The build scripts call sudo themselves. Ansible's become password does not
 # reach them, so a cold sudo timestamp would hang the run on a hidden prompt.
@@ -12,10 +31,10 @@
   changed_when: false
   failed_when: false
 
-- name: Fail early if sudo would prompt inside the build scripts
+- name: Fail early if sudo would prompt inside the build script
   ansible.builtin.fail:
     msg: >-
-      The fairydust scripts call sudo internally and cannot answer a password
+      The fairydust script calls sudo internally and cannot answer a password
       prompt from here. Run `sudo -v` in this terminal first, then re-run
       `./run.sh fairydust`.
   when: fairydust_sudo.rc != 0
@@ -26,21 +45,11 @@
     state: directory
     mode: "0755"
 
-- name: Install the build scripts
+- name: Install the build script
   ansible.builtin.copy:
-    src: "{{ item }}"
-    dest: "{{ src_dir }}/fairydust/{{ item }}"
+    src: fairydust-asahi-fedora.sh
+    dest: "{{ src_dir }}/fairydust/fairydust-asahi-fedora.sh"
     mode: "0755"
-  loop:
-    - prepare-asahi-fedora.sh
-    - fairydust-asahi-fedora.sh
-
-# Installs the C toolchain and the Rust toolchain into ~/.cargo.
-- name: Install the kernel build toolchain
-  ansible.builtin.command:
-    cmd: ./prepare-asahi-fedora.sh
-    chdir: "{{ src_dir }}/fairydust"
-    creates: "{{ ansible_user_dir }}/.cargo/env"
 
 # Guard: if we are already running a fairydust kernel there is nothing to do.
 # This means the role will NOT pick up new upstream commits on its own — to

@@ -37,13 +37,29 @@ From there `./run.sh` should get everything else back.
 
 | Role | What it does |
 |---|---|
-| `base` | The packages actually installed by hand, zsh as login shell, `~/src` |
+| `base` | The packages actually installed by hand, `~/src` |
+| `shell` | zsh + login shell, `.zshrc` / `.zshenv`, atuin and its config |
+| `rust` | rustup, the default toolchain, `rust-src`, `bindgen-cli` |
 | `ghostty` | scottames COPR, ghostty, config + custom Ayu theme |
 | `vscode` | Microsoft repo + key, `code` |
 | `tailscale` | Tailscale repo + key, daemon enabled |
 | `keyswaps` | Builds keyd from source into `/usr/local`, installs the mac-style keymap, enables it |
 | `titdb` | Builds trackpad-is-too-damn-big, installs binary + unit, enables it |
-| `fairydust` | Builds and installs the patched Asahi kernel. Tagged `never` |
+| `fairydust` | Builds and installs the patched Asahi kernel. Tagged `never`, needs `rust` |
+
+### fairydust needs rust
+
+The kernel build needs `cargo` and `bindgen` in `~/.cargo/bin`. `./run.sh
+fairydust` adds the `rust` role to the run automatically, and the fairydust
+role fails with an explanation if the toolchain is missing anyway.
+
+This is deliberately *not* done with a `meta/dependencies` entry. Role
+dependencies inherit the tags of the role that pulls them in, and Ansible
+de-duplicates a role that appears twice in a play — so with `fairydust` tagged
+`never`, the dependency copy of `rust` would be dropped in favour of the
+standalone one, which `--tags fairydust` does not select. The kernel build
+would then run without a toolchain. Handling it in `run.sh` is less clever and
+actually works.
 
 ## Source of truth
 
@@ -89,8 +105,15 @@ Source builds are guarded so re-runs are cheap. To force one:
 - titdb: bump `titdb_commit`, then delete
   `~/src/trackpad-is-too-damn-big/build/titdb`
 
+## Not in here
+
+Secrets and identity, deliberately. `~/.ssh` keys (including the FIDO
+`id_ed25519_sk`), the atuin sync key, and any tokens are not captured — the
+`shell` role only creates `~/.ssh` with the right mode so the agent-socket
+symlink in `.zshrc` works. Restore those from wherever you keep them.
+
 ## Known drift
 
-`roles/titdb/files/LOCAL-SETUP.md` says the titdb unit is installed but not
+`LOCAL-SETUP.md` in the titdb checkout says the unit is installed but not
 enabled. It is enabled on this machine, and this playbook enables it. The note
 is stale; the playbook is right.

@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-ROLES=(base ghostty vscode tailscale keyswaps titdb fairydust)
+ROLES=(base shell rust ghostty vscode tailscale keyswaps titdb fairydust)
 
 usage() {
     cat <<EOF
@@ -57,8 +57,17 @@ for t in "${tags[@]:-}"; do
     if [[ $t == fairydust ]]; then
         read -rp "Build and install the fairydust kernel? [y/N] " reply
         [[ ${reply,,} == y* ]] || { echo "aborted"; exit 0; }
-        # The build scripts shell out to sudo themselves; warm the timestamp.
+        # The kernel build needs cargo and bindgen. Pull the rust role in rather
+        # than failing the preflight check inside the fairydust role.
+        already=false
+        for u in "${tags[@]}"; do [[ $u == rust ]] && already=true && break; done
+        if [[ $already == false ]]; then
+            echo "==> fairydust needs rust; adding the rust role"
+            tags=(rust "${tags[@]}")
+        fi
+        # The build script shells out to sudo itself; warm the timestamp.
         sudo -v
+        break
     fi
 done
 

@@ -48,12 +48,6 @@
     mode: "0644"
   notify: Restart titdb
 
-- name: Keep the local setup notes alongside the checkout
-  ansible.builtin.copy:
-    src: LOCAL-SETUP.md
-    dest: "{{ src_dir }}/trackpad-is-too-damn-big/LOCAL-SETUP.md"
-    mode: "0644"
-
 - name: Enable and start titdb
   become: true
   ansible.builtin.systemd_service:
