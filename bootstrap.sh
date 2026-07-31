@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# First thing to run on a freshly installed Fedora Asahi Remix box.
 # Installs just enough to run the playbook, then hands off to run.sh.
 set -euo pipefail
 cd "$(dirname "$0")"

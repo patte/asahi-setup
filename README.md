@@ -1,12 +1,6 @@
 # asahi-setup
 
-Rebuild this machine — MacBook Air (M2, J415), Fedora Asahi Remix 44
-Workstation, GNOME/Wayland — from a fresh install, without remembering
-anything.
-
-Ansible, run locally against `localhost`. Idempotent: running it on a working
-box should report zero changes, which is how you check that the rebuild still
-works *without* rebuilding.
+Opinionated setup for my Fedora Asahi Workstation
 
 ## Usage
 
@@ -24,9 +18,7 @@ Flags pass through to `ansible-playbook`, so `./run.sh titdb --diff -v` works.
 
 ## Where this starts
 
-**Not** at bare metal. Reproducing the Asahi install itself — the upstream
-installer, partitioning, m1n1 and the initial bootloader setup — is manual and
-documented by upstream. This playbook assumes:
+**Not** at bare metal. This playbook assumes:
 
 1. Fedora Asahi Remix 44 Workstation is installed and booted.
 2. You are logged in as `patte` with working network and sudo.
@@ -72,21 +64,6 @@ the next run will quietly revert you.
 `~/src/keyswaps/` and the notes in the titdb checkout stay where they are as
 documentation, but the files this playbook installs are the ones in here.
 
-## Package list
-
-`base_packages` in `group_vars/all.yml` is only what was installed by hand,
-recovered from `dnf history` filtered to `Reason=User`. Dependencies are left
-to dnf. Build dependencies are declared in whichever role needs them, not in
-the base list.
-
-To see what has been added by hand since:
-
-```sh
-for id in $(seq 5 99); do
-  dnf history info $id 2>/dev/null | awk '$1=="Install" && $3=="User" {print $2}'
-done | sed 's/-[0-9]*:.*$//' | sort -u
-```
-
 ## What is deliberately not automated
 
 - **`tailscale up`** — needs interactive browser auth. Run once by hand.
@@ -104,26 +81,3 @@ Source builds are guarded so re-runs are cheap. To force one:
   `keyd --version`)
 - titdb: bump `titdb_commit`, then delete
   `~/src/trackpad-is-too-damn-big/build/titdb`
-
-## Not in here
-
-Secrets and identity, deliberately. `~/.ssh` keys (including the FIDO
-`id_ed25519_sk`), the atuin sync key, `~/.claude/.credentials.json` and any
-tokens are not captured — the `shell` role only creates `~/.ssh` with the right
-mode so the agent-socket symlink in `.zshrc` works. Restore those from wherever
-you keep them, and log back into Claude Code by running `claude`.
-
-Session state is also out: Claude Code's `history.jsonl`, `sessions/`,
-`projects/` transcripts, shell snapshots and caches. The memory files under
-`projects/-home-patte/memory/` **are** kept — they are notes, not state.
-
-One thing worth knowing rather than discovering: the captured
-`~/.claude/settings.json` sets `permissions.defaultMode` to
-`bypassPermissions`, so a rebuild restores Claude Code to a no-prompt mode
-without saying anything about it.
-
-## Known drift
-
-`LOCAL-SETUP.md` in the titdb checkout says the unit is installed but not
-enabled. It is enabled on this machine, and this playbook enables it. The note
-is stale; the playbook is right.
