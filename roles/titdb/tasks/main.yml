@@ -1,0 +1,63 @@
+---
+- name: Install titdb build dependencies
+  become: true
+  ansible.builtin.dnf5:
+    name:
+      - git
+      - cmake
+      - gcc-c++
+      - libevdev-devel
+    state: present
+
+- name: Clone trackpad-is-too-damn-big
+  ansible.builtin.git:
+    repo: "{{ titdb_repo }}"
+    dest: "{{ src_dir }}/trackpad-is-too-damn-big"
+    version: "{{ titdb_commit }}"
+
+# `creates:` on the build artifacts means these are no-ops once built. To force
+# a rebuild after bumping titdb_commit, delete build/titdb.
+- name: Configure the titdb build
+  ansible.builtin.command:
+    cmd: cmake -S . -B build
+    chdir: "{{ src_dir }}/trackpad-is-too-damn-big"
+    creates: "{{ src_dir }}/trackpad-is-too-damn-big/build/Makefile"
+
+- name: Compile titdb
+  ansible.builtin.command:
+    cmd: make -j{{ ansible_processor_vcpus }}
+    chdir: "{{ src_dir }}/trackpad-is-too-damn-big/build"
+    creates: "{{ src_dir }}/trackpad-is-too-damn-big/build/titdb"
+
+- name: Install the titdb binary
+  become: true
+  ansible.builtin.copy:
+    src: "{{ src_dir }}/trackpad-is-too-damn-big/build/titdb"
+    dest: /usr/local/bin/titdb
+    remote_src: true
+    mode: "0755"
+  notify: Restart titdb
+
+# The unit is the source of truth for the dead-zone tuning (the -l/-r/-t/-b
+# percentages live in its ExecStart). Edit it here, not in /etc.
+- name: Install the titdb unit
+  become: true
+  ansible.builtin.copy:
+    src: titdb.service
+    dest: /etc/systemd/system/titdb.service
+    mode: "0644"
+  notify: Restart titdb
+
+- name: Keep the local setup notes alongside the checkout
+  ansible.builtin.copy:
+    src: LOCAL-SETUP.md
+    dest: "{{ src_dir }}/trackpad-is-too-damn-big/LOCAL-SETUP.md"
+    mode: "0644"
+
+- name: Enable and start titdb
+  become: true
+  ansible.builtin.systemd_service:
+    name: titdb
+    enabled: true
+    state: started
+    daemon_reload: true

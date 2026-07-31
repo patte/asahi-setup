@@ -1,0 +1,36 @@
+---
+# Importing the key into the rpmdb up front is what stops dnf from throwing
+# "repomd.xml GPG signature verification error: Signing key not found" on every
+# metadata refresh — the repo sets repo_gpgcheck=1.
+- name: Import the Tailscale signing key
+  become: true
+  ansible.builtin.rpm_key:
+    key: https://pkgs.tailscale.com/stable/fedora/repo.gpg
+    state: present
+
+- name: Add the Tailscale repository
+  become: true
+  ansible.builtin.yum_repository:
+    name: tailscale-stable
+    description: Tailscale stable
+    baseurl: https://pkgs.tailscale.com/stable/fedora/$basearch
+    gpgkey: https://pkgs.tailscale.com/stable/fedora/repo.gpg
+    gpgcheck: true
+    repo_gpgcheck: true
+    enabled: true
+
+- name: Install tailscale
+  become: true
+  ansible.builtin.dnf5:
+    name: tailscale
+    state: present
+
+- name: Enable and start tailscaled
+  become: true
+  ansible.builtin.systemd_service:
+    name: tailscaled
+    enabled: true
+    state: started
+
+# Deliberately not automated: `sudo tailscale up` needs interactive browser
+# auth. Run it by hand once after a rebuild.

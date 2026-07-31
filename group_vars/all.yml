@@ -1,0 +1,30 @@
+---
+# Everything tunable lives here. Roles should not hardcode paths or versions.
+
+target_user: patte
+src_dir: "/home/{{ target_user }}/src"
+
+# --- base -------------------------------------------------------------------
+base_packages:
+  - dnf-plugins-core
+  - zsh
+  - btop
+  - neovim
+  - gh
+  - yubikey-manager
+
+login_shell: /usr/bin/zsh
+
+# --- keyswaps ---------------------------------------------------------------
+keyd_repo: https://github.com/rvaiya/keyd.git
+keyd_version: v2.6.0
+
+# --- titdb ------------------------------------------------------------------
+titdb_repo: https://github.com/tascvh/trackpad-is-too-damn-big.git
+titdb_commit: 26fcd89a8e9620be11783c34aedeff12968ae600
+# The Apple MTP touchpad. by-path, because evdev numbering moves across boots.
+titdb_device: /dev/input/by-path/platform-24eb30000.input-event-mouse
+
+# --- fairydust --------------------------------------------------------------
+# Matched against the running kernel to decide whether a build is needed.
+fairydust_localversion: "-asahi-fairydust"

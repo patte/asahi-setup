@@ -1,0 +1,18 @@
+---
+- name: Install hand-picked packages
+  become: true
+  ansible.builtin.dnf5:
+    name: "{{ base_packages }}"
+    state: present
+
+- name: Make zsh the login shell
+  become: true
+  ansible.builtin.user:
+    name: "{{ target_user }}"
+    shell: "{{ login_shell }}"
+
+- name: Ensure ~/src exists
+  ansible.builtin.file:
+    path: "{{ src_dir }}"
+    state: directory
+    mode: "0755"

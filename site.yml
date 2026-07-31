@@ -1,0 +1,28 @@
+---
+- name: Fedora Asahi Remix workstation
+  hosts: local
+  gather_facts: true
+
+  roles:
+    - role: base
+      tags: [base]
+
+    - role: ghostty
+      tags: [ghostty]
+
+    - role: vscode
+      tags: [vscode]
+
+    - role: tailscale
+      tags: [tailscale]
+
+    - role: keyswaps
+      tags: [keyswaps]
+
+    - role: titdb
+      tags: [titdb]
+
+    # Tagged `never`: a full kernel compile is not something a routine run
+    # should ever trigger. Only `./run.sh fairydust` reaches it.
+    - role: fairydust
+      tags: [fairydust, never]

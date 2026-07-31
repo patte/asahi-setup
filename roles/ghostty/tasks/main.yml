@@ -1,0 +1,30 @@
+---
+- name: Enable the ghostty COPR
+  become: true
+  community.general.copr:
+    name: scottames/ghostty
+    state: enabled
+
+- name: Install ghostty
+  become: true
+  ansible.builtin.dnf5:
+    name: ghostty
+    state: present
+
+- name: Ensure the ghostty config directories exist
+  ansible.builtin.file:
+    path: "{{ ansible_user_dir }}/.config/ghostty/themes"
+    state: directory
+    mode: "0755"
+
+- name: Install the ghostty config
+  ansible.builtin.copy:
+    src: config.ghostty
+    dest: "{{ ansible_user_dir }}/.config/ghostty/config.ghostty"
+    mode: "0644"
+
+- name: Install the custom theme
+  ansible.builtin.copy:
+    src: themes/ayu-dark-custom
+    dest: "{{ ansible_user_dir }}/.config/ghostty/themes/ayu-dark-custom"
+    mode: "0644"

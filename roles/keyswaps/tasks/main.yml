@@ -1,0 +1,62 @@
+---
+- name: Install keyd build dependencies
+  become: true
+  ansible.builtin.dnf5:
+    name:
+      - git
+      - gcc
+      - make
+    state: present
+
+- name: Check which keyd is installed, if any
+  ansible.builtin.command: keyd --version
+  register: keyd_installed
+  changed_when: false
+  failed_when: false
+
+# Rebuilds only when the installed binary does not match keyd_version, so
+# bumping the version in group_vars is enough to trigger a fresh build.
+- name: Build keyd {{ keyd_version }} from source
+  when: keyd_version not in (keyd_installed.stdout | default(''))
+  block:
+    - name: Clone keyd at {{ keyd_version }}
+      ansible.builtin.git:
+        repo: "{{ keyd_repo }}"
+        dest: "{{ src_dir }}/keyd"
+        version: "{{ keyd_version }}"
+        depth: 1
+
+    - name: Compile keyd
+      community.general.make:
+        chdir: "{{ src_dir }}/keyd"
+        jobs: "{{ ansible_processor_vcpus }}"
+
+    # Installs into /usr/local, including /usr/local/lib/systemd/system/keyd.service.
+    - name: Install keyd into /usr/local
+      become: true
+      community.general.make:
+        chdir: "{{ src_dir }}/keyd"
+        target: install
+
+- name: Ensure /etc/keyd exists
+  become: true
+  ansible.builtin.file:
+    path: /etc/keyd
+    state: directory
+    mode: "0755"
+
+- name: Install the keyd configuration
+  become: true
+  ansible.builtin.copy:
+    src: keyd-default.conf
+    dest: /etc/keyd/default.conf
+    mode: "0644"
+  notify: Reload keyd
+
+- name: Enable and start keyd
+  become: true
+  ansible.builtin.systemd_service:
+    name: keyd
+    enabled: true
+    state: started
+    daemon_reload: true

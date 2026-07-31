@@ -1,0 +1,62 @@
+---
+# The least trustworthy role in the repo, by nature: it compiles a kernel from
+# a moving upstream branch, installs it outside RPM, rewrites DTBs and updates
+# m1n1. It is tagged `never` in site.yml and only runs on an explicit
+# `./run.sh fairydust`.
+
+# The build scripts call sudo themselves. Ansible's become password does not
+# reach them, so a cold sudo timestamp would hang the run on a hidden prompt.
+- name: Preflight — require a usable passwordless sudo timestamp
+  ansible.builtin.command: sudo -n true
+  register: fairydust_sudo
+  changed_when: false
+  failed_when: false
+
+- name: Fail early if sudo would prompt inside the build scripts
+  ansible.builtin.fail:
+    msg: >-
+      The fairydust scripts call sudo internally and cannot answer a password
+      prompt from here. Run `sudo -v` in this terminal first, then re-run
+      `./run.sh fairydust`.
+  when: fairydust_sudo.rc != 0
+
+- name: Ensure the fairydust working directory exists
+  ansible.builtin.file:
+    path: "{{ src_dir }}/fairydust"
+    state: directory
+    mode: "0755"
+
+- name: Install the build scripts
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ src_dir }}/fairydust/{{ item }}"
+    mode: "0755"
+  loop:
+    - prepare-asahi-fedora.sh
+    - fairydust-asahi-fedora.sh
+
+# Installs the C toolchain and the Rust toolchain into ~/.cargo.
+- name: Install the kernel build toolchain
+  ansible.builtin.command:
+    cmd: ./prepare-asahi-fedora.sh
+    chdir: "{{ src_dir }}/fairydust"
+    creates: "{{ ansible_user_dir }}/.cargo/env"
+
+# Guard: if we are already running a fairydust kernel there is nothing to do.
+# This means the role will NOT pick up new upstream commits on its own — to
+# rebuild deliberately, boot a stock kernel first or run the script by hand.
+- name: Build and install the fairydust kernel
+  ansible.builtin.shell:
+    cmd: >-
+      source {{ ansible_user_dir }}/.cargo/env &&
+      ./fairydust-asahi-fedora.sh all
+    chdir: "{{ src_dir }}/fairydust"
+    executable: /bin/bash
+  when: fairydust_localversion not in ansible_kernel
+  register: fairydust_build
+  changed_when: fairydust_build.rc == 0
+
+- name: Note that a reboot is required
+  ansible.builtin.debug:
+    msg: "Kernel built and installed. Reboot to run it."
+  when: fairydust_build is changed

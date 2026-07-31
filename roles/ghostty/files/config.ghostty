@@ -1,0 +1,9 @@
+command = /usr/bin/zsh -l
+
+theme = Ayu
+
+gtk-titlebar = false
+keybind = ctrl+shift+b=toggle_window_decorations
+
+# Suppress the "Copied to clipboard" toast on every Super+C.
+app-notifications = no-clipboard-copy
