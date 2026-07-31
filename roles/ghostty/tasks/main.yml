@@ -3,6 +3,7 @@
   become: true
   community.general.copr:
     name: scottames/ghostty
+    chroot: "{{ copr_chroot }}"
     state: enabled
 
 - name: Install ghostty

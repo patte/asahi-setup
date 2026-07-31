@@ -19,6 +19,13 @@ login_shell: /usr/bin/zsh
 # installer produces. Fedora's atuin package installs to /usr/bin instead.
 atuin_version: v18.18.1
 
+# --- copr -------------------------------------------------------------------
+# The copr module derives the chroot from /etc/os-release ID, which on this box
+# is `fedora-asahi-remix` — not a chroot any COPR actually builds for. Asahi
+# Remix is Fedora as far as COPR is concerned, so name it explicitly. Any future
+# COPR role should use this too.
+copr_chroot: "fedora-{{ ansible_facts['distribution_major_version'] }}-{{ ansible_facts['architecture'] }}"
+
 # --- rust -------------------------------------------------------------------
 rust_toolchain: stable
 

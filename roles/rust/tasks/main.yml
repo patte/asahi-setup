@@ -39,6 +39,8 @@
   register: rustc_version
   changed_when: false
 
+# Skipped in check mode, where the command above does not run.
 - name: Show the installed rustc
   ansible.builtin.debug:
     msg: "{{ rustc_version.stdout }}"
+  when: rustc_version.stdout | default('') | length > 0
