@@ -5,11 +5,11 @@
 - name: Install Claude Code
   ansible.builtin.shell:
     cmd: curl -fsSL https://claude.ai/install.sh | bash
-    creates: "{{ ansible_user_dir }}/.local/bin/claude"
+    creates: "{{ ansible_facts['user_dir'] }}/.local/bin/claude"
 
 - name: Ensure the Claude config directory exists
   ansible.builtin.file:
-    path: "{{ ansible_user_dir }}/.claude"
+    path: "{{ ansible_facts['user_dir'] }}/.claude"
     state: directory
     mode: "0755"
 
@@ -23,7 +23,7 @@
 - name: Install Claude Code settings
   ansible.builtin.copy:
     src: settings.json
-    dest: "{{ ansible_user_dir }}/.claude/settings.json"
+    dest: "{{ ansible_facts['user_dir'] }}/.claude/settings.json"
     mode: "0644"
 
 # Deliberately not managed: ~/.claude/.credentials.json (auth token),

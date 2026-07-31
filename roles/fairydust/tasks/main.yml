@@ -10,7 +10,7 @@
 
 - name: Check for the Rust toolchain
   ansible.builtin.stat:
-    path: "{{ ansible_user_dir }}/.cargo/bin/{{ item }}"
+    path: "{{ ansible_facts['user_dir'] }}/.cargo/bin/{{ item }}"
   register: fairydust_rust
   loop:
     - cargo
@@ -57,11 +57,11 @@
 - name: Build and install the fairydust kernel
   ansible.builtin.shell:
     cmd: >-
-      source {{ ansible_user_dir }}/.cargo/env &&
+      source {{ ansible_facts['user_dir'] }}/.cargo/env &&
       ./fairydust-asahi-fedora.sh all
     chdir: "{{ src_dir }}/fairydust"
     executable: /bin/bash
-  when: fairydust_localversion not in ansible_kernel
+  when: fairydust_localversion not in ansible_facts['kernel']
   register: fairydust_build
   changed_when: fairydust_build.rc == 0
 

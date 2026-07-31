@@ -13,7 +13,7 @@
 
 - name: Ensure the ghostty config directory exists
   ansible.builtin.file:
-    path: "{{ ansible_user_dir }}/.config/ghostty"
+    path: "{{ ansible_facts['user_dir'] }}/.config/ghostty"
     state: directory
     mode: "0755"
 
@@ -21,5 +21,5 @@
 - name: Install the ghostty config
   ansible.builtin.copy:
     src: config.ghostty
-    dest: "{{ ansible_user_dir }}/.config/ghostty/config.ghostty"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/ghostty/config.ghostty"
     mode: "0644"

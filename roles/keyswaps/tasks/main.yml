@@ -29,7 +29,7 @@
     - name: Compile keyd
       community.general.make:
         chdir: "{{ src_dir }}/keyd"
-        jobs: "{{ ansible_processor_vcpus }}"
+        jobs: "{{ ansible_facts['processor_vcpus'] }}"
 
     # Installs into /usr/local, including /usr/local/lib/systemd/system/keyd.service.
     - name: Install keyd into /usr/local
