@@ -134,16 +134,25 @@ hl.gesture({
 -- Distance alone decides that here, and the two numbers multiply: the commit
 -- threshold is swipe_distance * cancel_ratio, so neither can be read on its own.
 -- Stock was 0.5 of 300, meaning 150px of finger travel — half a comfortable
--- swipe — before it would commit. 0.15 of 160 is 24px, about a sixth of that.
+-- swipe — before it would commit. 0.08 of 300 is 24px, about a sixth of that.
 -- Below roughly 15px there is nowhere left to go: direction_lock only decides
 -- which axis a swipe belongs to after 10px, so a commit threshold near that
 -- would fire before the gesture has been classified.
 --
--- swipe_distance is also the travel that maps to one whole workspace, so cutting
--- it tightens the tracking as well as the threshold: the workspace follows the
--- finger just under 2x faster than stock, which is most of what makes this read
--- as macOS-like. That coupling is why lowering it moves the commit point too,
--- and why raising it back would need cancel_ratio lowered to compensate.
+-- swipe_distance is left at its stock 300 because it does not only set that
+-- threshold — it is also the travel that maps to one whole workspace, and so
+-- doubles as the gain, as its inverse. There is no other multiplier to reach
+-- for: scroll_factor is for scroll axis events and never reaches a swipe, and
+-- libinput hands over gesture deltas unaccelerated, so sensitivity and
+-- accel_profile do not either. On this 1920 logical px wide panel:
+--
+--     gain = 1920 / 300 = 6.4 on-screen px per px of finger
+--
+-- Shortening it to 160 and then 200 was tried, and both track the finger too
+-- fast to follow comfortably. Stock gain turns out to be right; only the
+-- threshold was ever wrong. Since the threshold is the product of the two, that
+-- is what cancel_ratio is for, and it carries the whole change on its own here.
+-- Move one and the other has to move with it to hold 24px.
 --
 -- min_speed_to_force is the other path, committing on speed regardless of
 -- distance, and it is deliberately switched off. It cannot be turned off by
@@ -160,8 +169,8 @@ hl.gesture({
 -- commit only adds a way to switch workspaces by accident.
 hl.config({
     gestures = {
-        workspace_swipe_distance           = 160,
-        workspace_swipe_cancel_ratio       = 0.15,
+        workspace_swipe_distance           = 300,
+        workspace_swipe_cancel_ratio       = 0.08,
         workspace_swipe_min_speed_to_force = 100000,
 
         -- Swiping past the last workspace conjures a new one. Harmless at the
