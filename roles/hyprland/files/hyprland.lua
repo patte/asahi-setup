@@ -118,11 +118,57 @@ hl.config({
 })
 
 -- Three-finger horizontal swipe between workspaces, the one gesture GNOME
--- habits depend on. 0.49+ syntax; the old gestures{} block is gone.
+-- habits depend on. 0.49+ syntax: what the gesture *is* now lives here, in
+-- hl.gesture, rather than in the gestures{} toggle it replaced. The
+-- gestures:workspace_swipe_* tuning below did not go away with that toggle,
+-- though, and is what decides when a swipe counts.
 hl.gesture({
     fingers   = 3,
     direction = "horizontal",
     action    = "workspace",
+})
+
+-- Stock, this needs far more travel than macOS to commit, and a swipe that
+-- falls short animates most of the way and then snaps back to where it started.
+--
+-- Distance alone decides that here, and the two numbers multiply: the commit
+-- threshold is swipe_distance * cancel_ratio, so neither can be read on its own.
+-- Stock was 0.5 of 300, meaning 150px of finger travel — half a comfortable
+-- swipe — before it would commit. 0.15 of 160 is 24px, about a sixth of that.
+-- Below roughly 15px there is nowhere left to go: direction_lock only decides
+-- which axis a swipe belongs to after 10px, so a commit threshold near that
+-- would fire before the gesture has been classified.
+--
+-- swipe_distance is also the travel that maps to one whole workspace, so cutting
+-- it tightens the tracking as well as the threshold: the workspace follows the
+-- finger just under 2x faster than stock, which is most of what makes this read
+-- as macOS-like. That coupling is why lowering it moves the commit point too,
+-- and why raising it back would need cancel_ratio lowered to compensate.
+--
+-- min_speed_to_force is the other path, committing on speed regardless of
+-- distance, and it is deliberately switched off. It cannot be turned off by
+-- setting it to zero — the test is whether the swipe exceeds it, so zero means
+-- every swipe forces the change rather than none. A number no swipe can reach
+-- is the only way to disable it, hence the sentinel.
+--
+-- Worth knowing why it is not simply tuned instead: at its stock 30px per event
+-- it sat above what even a fast swipe produces (the same events that drive the
+-- zoom above deliver roughly 10px each), so it never fired at all and every
+-- swipe silently fell back to the 150px. Dropping it to 14 did make flicks
+-- commit, but with the travel requirement now at 24px the distance path already
+-- catches anything worth calling a flick, and a second, speed-based way to
+-- commit only adds a way to switch workspaces by accident.
+hl.config({
+    gestures = {
+        workspace_swipe_distance           = 160,
+        workspace_swipe_cancel_ratio       = 0.15,
+        workspace_swipe_min_speed_to_force = 100000,
+
+        -- Swiping past the last workspace conjures a new one. Harmless at the
+        -- stock threshold, but a shorter, twitchier swipe makes overshooting
+        -- the end of the list into an accident rather than an intent.
+        workspace_swipe_create_new         = false,
+    },
 })
 
 -- Zoom the screen around the cursor, macOS style. Declared here rather than
