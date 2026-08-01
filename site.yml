@@ -13,7 +13,9 @@
     - role: rust
       tags: [rust]
 
-    # Before ghostty: its config names DM Mono, which this role installs.
+    # Before ghostty: its config names ghostty_font_family and
+    # ghostty_font_family_fallback, and this role is what installs them. Named
+    # by variable rather than by family so swapping fonts cannot stale it.
     - role: fonts
       tags: [fonts]
 

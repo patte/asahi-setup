@@ -1,7 +1,23 @@
 ---
-# Everything here is a user font install under ~/.local/share/fonts, one
-# directory per family, so nothing needs root and nothing collides with the
-# fonts Fedora ships.
+# The downloaded families below are user font installs under
+# ~/.local/share/fonts, one directory per family, so they need no root and do
+# not collide with the fonts Fedora ships. The exception is the two packaged
+# families immediately below.
+
+# The families ghostty falls back to and maps single codepoints at — see
+# ghostty_font_family_fallback and ghostty_font_codepoint_map in group_vars.
+# Between them they supply every frame of claude code's throbber that SF Mono
+# cannot draw level: adwaita-mono-fonts the five dingbats, Source Code Pro the
+# one ASCII asterisk. Both are usually on disk already but only ever as some
+# other package's dependency, which means they can leave with it and take the
+# throbber with them. Name them so a future `dnf autoremove` cannot.
+- name: Install the fonts ghostty falls back to
+  become: true
+  ansible.builtin.dnf5:
+    name:
+      - adwaita-mono-fonts
+      - adobe-source-code-pro-fonts
+    state: present
 
 - name: Ensure the font directories exist
   ansible.builtin.file:

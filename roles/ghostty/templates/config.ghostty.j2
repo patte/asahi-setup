@@ -4,6 +4,19 @@ theme = Ayu
 
 # Fonts come from the fonts role; pick one with ghostty_font_* in group_vars.
 font-family = {{ ghostty_font_family }}
+{% if ghostty_font_family_fallback %}
+# Repeated font-family is a fallback chain, not an override: the primary above
+# still wins for every glyph it has. This one only catches what it is missing —
+# see the comment in group_vars for what and why.
+font-family = {{ ghostty_font_family_fallback }}
+{% endif %}
+{% if ghostty_font_codepoint_map %}
+# Forced the other way: the chain above only fires where the primary comes up
+# empty, so a codepoint the primary *has* needs naming outright to move it.
+{% for entry in ghostty_font_codepoint_map %}
+font-codepoint-map = {{ entry }}
+{% endfor %}
+{% endif %}
 {% if ghostty_font_style_bold %}
 # This family ships no real bold face, so name a heavier style explicitly
 # rather than letting ghostty synthesise one by smearing the regular.

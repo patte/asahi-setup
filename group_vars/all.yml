@@ -85,6 +85,74 @@ ghostty_font_family: SFMono Nerd Font
 ghostty_font_style_bold: ""
 ghostty_font_style_bold_italic: ""
 
+# A second family ghostty consults only for codepoints the primary lacks.
+#
+# This exists for claude code's throbber, which pulses out and back through six
+# frames:
+#   U+273D ✽  U+273B ✻  U+2736 ✶  U+002A *  U+2722 ✢  U+00B7 ·
+# The asterisk is not a typo: on ghostty and every non-Darwin terminal upstream
+# substitutes plain `*` for the U+2733 ✳ it uses elsewhere, so this set is what
+# a Linux ghostty actually receives. Nothing about it is configurable — the
+# request to expose the frames was closed as not planned.
+#
+# No Nerd Font family above carries any of the four dingbats; Nerd-patching adds
+# icons in the private use area and does not fill holes in the standard blocks.
+# Left to fontconfig each frame resolves on its own and lands on a different
+# font, so the throbber changes size and weight as it turns instead of pulsing.
+#
+# Adwaita Mono covers all six, is spacing=100, and is a Fedora package rather
+# than a download — the fonts role installs it. It is also the only candidate
+# that draws them on a common centre: Symbola and Noto Sans Symbols 2 cover the
+# set too, but their ink centres wander 5-10 units per frame at a 200px em,
+# which is the sideways lurch this is meant to avoid. Note this is the stock
+# family, not `AdwaitaMono Nerd Font` — the primary already supplies the icons.
+# Set to "" to emit no fallback at all.
+ghostty_font_family_fallback: Adwaita Mono
+
+# Frames the fallback must be forced to claim, because the primary *can* draw
+# them and a fallback chain only fires where the primary comes up empty.
+#
+# SF Mono has two of the six — U+002A and U+00B7 — and the primary always wins
+# where it has a glyph. So it takes those two and forfeits the four dingbats,
+# which is what splits one animation across two families. Partial coverage is
+# worse than none here: had SF Mono carried none of the six, all six would fall
+# through to the fallback and agree with each other.
+#
+# U+00B7 goes to the fallback for that reason alone. U+002A is the interesting
+# one, and it does NOT go to the fallback — it goes to a third family, because
+# the visible defect here was never horizontal.
+#
+# `*` is an ASCII asterisk and every text font draws it as a raised mark, up
+# near cap height, while the five dingbats are centred on the em. Measured off
+# screenshots of a real window, each frame's ink centre against an `M` on the
+# same line, in device px at 1.5x scale:
+#
+#   ✽ +0.80   ✻ +1.59   ✶ +1.65   ✢ +1.63   · +1.87
+#   *         -2.40 from Adwaita Mono   <- 4.05 px, 2.7 logical px, HIGH
+#   *         +1.29 from Source Code Pro Semibold
+#
+# At size 12 the glyph is ~11px tall, so a 2.7px hop is enormous — the throbber
+# visibly bounces once per pulse. Vertical spread across the six frames goes
+# from 2.85 to 0.63 logical px by moving this one codepoint. Every Source Code
+# Pro weight centres its asterisk; Semibold is the pick because its 92 units
+# match Adwaita's `*` exactly, so nothing changes size either. Verify with
+# `ghostty +show-face --string='✽✻✶*✢·'` plus a look, since show-face cannot
+# tell you about height.
+#
+# The cost: every other `*` in the terminal comes from Source Code Pro, and
+# every `·` from Adwaita — markdown bold, globs, pointers, status separators.
+# All are small marks at matched widths, so the shift is slight, but it is not
+# confined to the throbber.
+#
+# What no mapping fixes: the frames are near-flat in size (90 88 90 92 98) and
+# then collapse to 32, so the pulse is a stutter-and-drop rather than a ramp.
+# Every font that actually has ✢ draws it largest — Adwaita 98, OpenSymbol 113,
+# Symbola 144, Noto Sans Symbols 2 155 — and it needs to be smaller than ✶ at
+# 90 for the pulse to descend. Empty for no mappings.
+ghostty_font_codepoint_map:
+  - U+002A=Source Code Pro Semibold
+  - U+00B7=Adwaita Mono
+
 # --- keyswaps ---------------------------------------------------------------
 keyd_repo: https://github.com/rvaiya/keyd.git
 keyd_version: v2.6.0
