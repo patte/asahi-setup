@@ -34,7 +34,8 @@ From there `./run.sh` should get everything else back.
 | `base` | The packages actually installed by hand, `~/src` |
 | `shell` | zsh + login shell, `.zshrc` / `.zshenv`, atuin and its config |
 | `rust` | rustup, the default toolchain, `rust-src`, `bindgen-cli` |
-| `ghostty` | scottames COPR, ghostty, config (uses the built-in Ayu theme) |
+| `fonts` | The families in `fonts_enabled` into `~/.local/share/fonts` (knows DM Mono, JetBrains Mono, SF Mono, Tabular) |
+| `ghostty` | scottames COPR, ghostty, templated config (Ayu theme, font from `ghostty_font_family`) |
 | `claude` | Claude Code via the native installer and `settings.json` |
 | `vscode` | Microsoft repo + key, `code` |
 | `tailscale` | Tailscale repo + key, daemon enabled |

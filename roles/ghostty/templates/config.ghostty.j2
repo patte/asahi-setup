@@ -1,0 +1,18 @@
+command = /usr/bin/zsh -l
+
+theme = Ayu
+
+# Fonts come from the fonts role; pick one with ghostty_font_* in group_vars.
+font-family = {{ ghostty_font_family }}
+{% if ghostty_font_style_bold %}
+# This family ships no real bold face, so name a heavier style explicitly
+# rather than letting ghostty synthesise one by smearing the regular.
+font-style-bold = {{ ghostty_font_style_bold }}
+font-style-bold-italic = {{ ghostty_font_style_bold_italic }}
+{% endif %}
+
+gtk-titlebar = false
+keybind = ctrl+shift+b=toggle_window_decorations
+
+# Suppress the "Copied to clipboard" toast on every Super+C.
+app-notifications = no-clipboard-copy

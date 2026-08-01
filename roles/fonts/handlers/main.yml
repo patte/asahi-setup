@@ -1,0 +1,5 @@
+---
+# Scoped to the user font directory: there is no reason to rescan /usr/share.
+- name: Rebuild the font cache
+  ansible.builtin.command: fc-cache --force "{{ fonts_dir }}"
+  changed_when: true

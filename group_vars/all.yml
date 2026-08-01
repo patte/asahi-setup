@@ -64,6 +64,13 @@ hyprland_packages:
 # --- rust -------------------------------------------------------------------
 rust_toolchain: stable
 
+# --- ghostty ----------------------------------------------------------------
+# The fontconfig family name; whichever family this is must be in fonts_enabled
+# below. Set ghostty_font_style_bold to "" for any family that ships a real bold.
+ghostty_font_family: SFMono Nerd Font
+ghostty_font_style_bold: ""
+ghostty_font_style_bold_italic: ""
+
 # --- keyswaps ---------------------------------------------------------------
 keyd_repo: https://github.com/rvaiya/keyd.git
 keyd_version: v2.6.0
@@ -77,3 +84,49 @@ titdb_device: /dev/input/by-path/platform-24eb30000.input-event-mouse
 # --- fairydust --------------------------------------------------------------
 # Matched against the running kernel to decide whether a build is needed.
 fairydust_localversion: "-asahi-fairydust"
+
+# --- fonts ------------------------------------------------------------------
+# Down here because it is the longest section and nothing else refers to it —
+# only the fonts role reads these. The family names ghostty wants are in the
+# ghostty section above.
+
+# Which families a run installs. The role knows how to fetch all four below;
+# only the ones listed here are downloaded. This is install-time selection
+# only — nothing is ever removed, so a family dropped from the list stays on
+# disk and keeps working until you delete it by hand.
+#
+# Directory here, ghostty_font_family name on the right:
+#
+#   DMMonoNerdFont         DMMono Nerd Font         no bold face — needs the
+#                                                   ghostty style override
+#   JetBrainsMonoNerdFont  JetBrainsMono Nerd Font  real bold
+#   SFMonoNerdFont         SFMono Nerd Font         real bold and italic
+#   Tabular                Tabular                  real bold, but not
+#                                                   Nerd-patched, so no icons
+fonts_enabled:
+  - SFMonoNerdFont
+
+fonts_dir: "/home/{{ target_user }}/.local/share/fonts"
+
+# DM Mono run through the Nerd Fonts patcher. Upstream publishes no releases
+# and no tags, so pin the commit and take the tarball GitHub generates for it.
+# Note the family name fontconfig reports has no space: `DMMono Nerd Font`.
+dm_mono_commit: 6673b66d809c93e3fd08051edf92710f4e67170f
+dm_mono_url: "https://github.com/minhuw/dm-mono-nerd-font/archive/{{ dm_mono_commit }}.tar.gz"
+
+# Apple's SF Mono, run through the Nerd Fonts patcher. Same story as DM Mono:
+# no releases worth pulling, so pin the commit and take the tarball. Twelve
+# OTFs at the repo root, and unlike DM Mono it has a real Bold and Italic.
+sf_mono_commit: ebd4255167f1b9105cfdf5694ea9a474f08a51c3
+sf_mono_url: "https://github.com/epk/SF-Mono-Nerd-Font/archive/{{ sf_mono_commit }}.tar.gz"
+
+# Nerd Fonts ships one zip per family, flat at the root: every weight in all
+# three widths (default, Mono, Propo). Ghostty embeds its own copy of plain
+# JetBrains Mono, so this is for everything that is not ghostty.
+nerd_fonts_version: v3.4.0
+jetbrains_mono_url: "https://github.com/ryanoasis/nerd-fonts/releases/download/{{ nerd_fonts_version }}/JetBrainsMono.zip"
+
+# Fontshare has no versioned URL — this always serves whatever is current, so
+# there is nothing to pin. The `creates:` guard means an existing install is
+# never re-fetched; delete the directory to pick up a newer cut.
+tabular_url: https://api.fontshare.com/v2/fonts/download/tabular

@@ -19,8 +19,10 @@
     mode: "0755"
 
 # theme = Ayu in here is ghostty's built-in, so no theme files are shipped.
+# Note ghostty loads every file in ~/.config/ghostty, not just `config` — which
+# is what lets this file and narchy's generated one coexist.
 - name: Install the ghostty config
-  ansible.builtin.copy:
-    src: config.ghostty
+  ansible.builtin.template:
+    src: config.ghostty.j2
     dest: "{{ ansible_facts['user_dir'] }}/.config/ghostty/config.ghostty"
     mode: "0644"

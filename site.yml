@@ -13,6 +13,10 @@
     - role: rust
       tags: [rust]
 
+    # Before ghostty: its config names DM Mono, which this role installs.
+    - role: fonts
+      tags: [fonts]
+
     - role: ghostty
       tags: [ghostty]
 

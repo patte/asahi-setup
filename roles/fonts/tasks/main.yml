@@ -1,0 +1,105 @@
+---
+# Everything here is a user font install under ~/.local/share/fonts, one
+# directory per family, so nothing needs root and nothing collides with the
+# fonts Fedora ships.
+
+- name: Ensure the font directories exist
+  ansible.builtin.file:
+    path: "{{ fonts_dir }}/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ fonts_enabled }}"
+
+# --strip-components=2 drops the archive's top directory and the
+# dm-mono-nerd-font/ below it, leaving the six .ttf files flat in the family
+# directory. Six, not more: Light/Regular/Medium and their italics. There is no
+# bold face, which is why the ghostty config points bold at Medium.
+- name: Install DM Mono Nerd Font
+  when: "'DMMonoNerdFont' in fonts_enabled"
+  ansible.builtin.unarchive:
+    src: "{{ dm_mono_url }}"
+    remote_src: true
+    dest: "{{ fonts_dir }}/DMMonoNerdFont"
+    creates: "{{ fonts_dir }}/DMMonoNerdFont/DM Mono Regular Nerd Font Complete.ttf"
+    extra_opts:
+      - --strip-components=2
+      - --wildcards
+    include:
+      - "*/dm-mono-nerd-font/*.ttf"
+  notify: Rebuild the font cache
+
+# The .otf files sit at the repo root, so one --strip-components is enough.
+- name: Install SF Mono Nerd Font
+  when: "'SFMonoNerdFont' in fonts_enabled"
+  ansible.builtin.unarchive:
+    src: "{{ sf_mono_url }}"
+    remote_src: true
+    dest: "{{ fonts_dir }}/SFMonoNerdFont"
+    creates: "{{ fonts_dir }}/SFMonoNerdFont/SFMono Regular Nerd Font Complete.otf"
+    extra_opts:
+      - --strip-components=1
+      - --wildcards
+    include:
+      - "*/*.otf"
+  notify: Rebuild the font cache
+
+# The upstream release zip is flat, so it unpacks as-is. It is also ~130 MB and
+# 96 faces; `creates:` keeps that to the first run.
+- name: Install JetBrains Mono Nerd Font
+  when: "'JetBrainsMonoNerdFont' in fonts_enabled"
+  ansible.builtin.unarchive:
+    src: "{{ jetbrains_mono_url }}"
+    remote_src: true
+    dest: "{{ fonts_dir }}/JetBrainsMonoNerdFont"
+    creates: "{{ fonts_dir }}/JetBrainsMonoNerdFont/JetBrainsMonoNerdFont-Regular.ttf"
+  notify: Rebuild the font cache
+
+- name: Check whether Tabular is already installed
+  ansible.builtin.stat:
+    path: "{{ fonts_dir }}/Tabular/Tabular-Regular.otf"
+  register: tabular_installed
+
+# Not `unarchive`: the zip nests everything under Tabular_Complete/Fonts/OTF/
+# and unzip cannot strip leading directories, only junk all of them with -j —
+# which then breaks unarchive's own post-extract pass, since it goes looking
+# for the files under the paths the archive named. Fetch and unpack by hand.
+- name: Install Tabular
+  when:
+    - "'Tabular' in fonts_enabled"
+    - not tabular_installed.stat.exists
+  block:
+    - name: Create a staging directory for the Tabular download
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: tabular
+      register: tabular_stage
+
+    - name: Fetch Tabular
+      ansible.builtin.get_url:
+        url: "{{ tabular_url }}"
+        dest: "{{ tabular_stage.path }}/tabular.zip"
+        mode: "0644"
+
+    # The zip also carries webfonts and a variable TTF. Only the OTF statics
+    # are unpacked — the variable font calls itself `Tabular Variable`, so it
+    # registers as a separate family and sits beside the statics rather than
+    # replacing them.
+    - name: Unpack the Tabular OTFs
+      ansible.builtin.command:
+        argv:
+          - unzip
+          - -o
+          - -j
+          - "{{ tabular_stage.path }}/tabular.zip"
+          - Tabular_Complete/Fonts/OTF/*.otf
+          - Tabular_Complete/License/*
+          - -d
+          - "{{ fonts_dir }}/Tabular"
+      changed_when: true
+      notify: Rebuild the font cache
+  always:
+    - name: Remove the Tabular staging directory
+      ansible.builtin.file:
+        path: "{{ tabular_stage.path }}"
+        state: absent
+      when: tabular_stage.path is defined
