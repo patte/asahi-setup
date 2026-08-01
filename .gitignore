@@ -1,4 +1,7 @@
 *.retry
 *.log
 __pycache__/
-.facts_cache/
+# No .facts_cache/ entry: facts are cached under XDG_RUNTIME_DIR, on purpose,
+# and ignoring a repo-local path here would only invite someone to point
+# fact_caching_connection at it — the one place the cache must not live. See
+# ansible.cfg.

@@ -78,9 +78,36 @@ yet. Not done yet, on purpose: a lock screen (`hyprlock`), an idle daemon
 
 Editing it is a tight enough loop to deserve its own entry point: `./hypr.sh`
 runs the `hyprland-config` tag — the two tasks that place the file, nothing
-else — and then `hyprctl reload`. No sudo, since the COPR and package tasks are
-not in the tag. Use `./run.sh hyprland` when the packages themselves need
-attention.
+else — and then `hyprctl reload`. About a second, and no sudo, since the COPR
+and package tasks are not in the tag. Use `./run.sh hyprland` when the packages
+themselves need attention.
+
+Most of that second used to be fact gathering, for the single fact those tasks
+read; see fact caching below.
+
+## Fact caching
+
+`ansible.cfg` turns on `smart` gathering against a jsonfile cache, so every
+entry point — `./run.sh`, `./hypr.sh`, a bare `ansible-playbook` — skips the
+`Gathering Facts` task while the cache is warm. Worth roughly 1.7s a run, which
+is two thirds of `./hypr.sh`.
+
+The cache lives in `${XDG_RUNTIME_DIR}/asahi-setup/facts`, which is tmpfs and
+is emptied on every reboot. That is what makes it safe rather than merely fast,
+and it is why the timeout is `0`, never expire: **a reboot is the only event
+that changes a fact this repo reads.** The five in use are `user_dir`,
+`architecture`, `processor_vcpus`, `distribution_major_version` and `kernel` —
+the first three would need different hardware, the fourth a release upgrade,
+and `kernel` reports the *running* kernel, so it flips at boot and not when
+`fairydust` builds one.
+
+That last one is the reason not to move the cache somewhere persistent. A cache
+surviving a reboot is exactly how `./run.sh fairydust` would read a pre-reboot
+`ansible_kernel` and rebuild the kernel already running.
+
+Two facts do get written by roles — `shell` sets `user_shell`, `tailscale` adds
+`tailscale0` — and neither is ever read, so neither matters. If you start
+reading a fact a role changes mid-run, this scheme stops holding.
 
 ## Source of truth
 
