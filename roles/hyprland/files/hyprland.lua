@@ -173,9 +173,19 @@ hl.config({
         workspace_swipe_cancel_ratio       = 0.08,
         workspace_swipe_min_speed_to_force = 100000,
 
+        -- Stock, a swipe clamps at the neighbouring workspace however far it
+        -- runs, so crossing two takes two gestures. This lets one long swipe
+        -- keep going. The trackpad has the travel for it: the first workspace
+        -- costs the 24px above, and each one after that a further whole
+        -- swipe_distance, so +2 is about 324px and +3 about 624px. That is a
+        -- lot of finger, but it is only ever spent when the swipe asks for it —
+        -- a short flick still lands exactly one across, as before.
+        workspace_swipe_forever            = true,
+
         -- Swiping past the last workspace conjures a new one. Harmless at the
         -- stock threshold, but a shorter, twitchier swipe makes overshooting
-        -- the end of the list into an accident rather than an intent.
+        -- the end of the list into an accident rather than an intent — and
+        -- more so now that a swipe is allowed to run past its neighbour.
         workspace_swipe_create_new         = false,
     },
 })
