@@ -67,6 +67,40 @@
     dest: "{{ ansible_facts['user_dir'] }}/.config/hypr/hyprland.lua"
     mode: "0644"
 
+# The bar is the one stock config we replace outright, because under Hyprland
+# half of it does not run: /etc/xdg/waybar/config.jsonc names `sway/workspaces`
+# and `sway/window`. See the header of our copy for what else differs.
+#
+# Only the config, not the stylesheet. narchy owns ~/.config/waybar/style.css —
+# it seeds it from /etc/xdg on `narchy link` and appends its palette import — and
+# both halves address modules by the same ids, so the two never meet.
+- name: Ensure the waybar config directory exists
+  tags: [hyprland-config]
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.config/waybar/scripts"
+    state: directory
+    mode: "0755"
+
+- name: Install the waybar config
+  tags: [hyprland-config]
+  ansible.builtin.copy:
+    src: waybar/config.jsonc
+    dest: "{{ ansible_facts['user_dir'] }}/.config/waybar/config.jsonc"
+    mode: "0644"
+  notify: Reload waybar
+
+# The click targets for the volume and bluetooth modules. Executable, and no
+# reload needed: waybar shells out to them fresh on every click.
+- name: Install the waybar menu scripts
+  tags: [hyprland-config]
+  ansible.builtin.copy:
+    src: "waybar/scripts/{{ item }}"
+    dest: "{{ ansible_facts['user_dir'] }}/.config/waybar/scripts/{{ item }}"
+    mode: "0755"
+  loop:
+    - audio-output
+    - bluetooth
+
 # Nothing to enable or start: the package drops hyprland.desktop into
 # /usr/share/wayland-sessions/, so the session shows up at the GDM gear icon
 # next to GNOME. GDM remembers the last choice per user, so GNOME stays the

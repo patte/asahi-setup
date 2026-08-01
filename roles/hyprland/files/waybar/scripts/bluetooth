@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# Bluetooth from the bar: the power switch, and one click per paired device.
+# Same reasoning as the audio picker next door — a list of devices is not
+# something waybar's static menu file can hold, so it is wofi. Bullets and
+# padding are two columns wide either way, so the names line up.
+set -euo pipefail
+
+notify() { notify-send --app-name=Bluetooth --expire-time=4000 "$1" "${2-}"; }
+
+# bluetoothctl reads stdin whenever it is not given a command it can finish, and
+# would eat the loop below out from under us, so every call gets /dev/null.
+#
+# Nothing here pipes bluetoothctl into anything, either. `show` is long enough
+# to fill a pipe buffer, so a reader that stops early — awk with an exit, grep
+# -q — leaves it writing into a closed pipe, and the SIGPIPE that follows is a
+# failure to pipefail. Read the whole output into a variable and match on that.
+bt() { bluetoothctl "$@" </dev/null; }
+powered() { [[ $(bt show) == *"Powered: yes"* ]]; }
+
+declare -A action_of
+labels=()
+add() {
+    action_of[$1]=$2
+    labels+=("$1")
+}
+
+if powered; then
+    add "  Turn Bluetooth off" "power off"
+    while read -r _ mac name; do
+        if [[ $(bt info "$mac") == *"Connected: yes"* ]]; then
+            add "● $name" "disconnect $mac"
+        else
+            add "  $name" "connect $mac"
+        fi
+    done < <(bt devices Paired)
+else
+    add "  Turn Bluetooth on" "power on"
+fi
+
+choice=$(printf '%s\n' "${labels[@]}" |
+    wofi --dmenu --insensitive --cache-file /dev/null \
+        --prompt "Bluetooth" --width 360 --height 240) || exit 0
+
+# Escape exits wofi non-zero, but a killed wofi and an empty filter both come
+# back as a successful nothing — and an empty subscript is a hard error on an
+# associative array, so it has to be caught before the lookup.
+[[ -n $choice ]] || exit 0
+action=${action_of[$choice]-}
+[[ -n $action ]] || exit 0
+verb=${action%% *}
+target=${action#* }
+name=${choice:2}
+
+case "$verb" in
+power)
+    # The adapter comes up soft-blocked on this machine, and bluetoothctl cannot
+    # clear that by itself: powering on a blocked adapter fails with
+    # org.bluez.Error.Blocked. /dev/rfkill is writable without root here — the
+    # uaccess udev rule puts an ACL for the logged-in user on it — so this is
+    # the same pair of steps GNOME's own toggle takes.
+    if [[ $target == on ]]; then
+        rfkill unblock bluetooth
+        # bluez restores the adapter by itself once the block lifts, but not
+        # instantly, and a `power on` landing inside that window fails with
+        # exactly the Blocked error it was meant to get past. So ask, and keep
+        # asking until it reports itself on rather than trusting either half.
+        for _ in 1 2 3 4 5; do
+            powered && break
+            bt power on >/dev/null || true
+            sleep 0.4
+        done
+    else
+        bt power off >/dev/null || true
+        rfkill block bluetooth
+    fi
+    ;;
+connect)
+    # Connecting is the one action slow enough to need saying out loud: a
+    # headset asleep in its case takes seconds, and can refuse outright.
+    notify "Connecting" "$name"
+    if [[ $(bt connect "$target") == *"Connection successful"* ]]; then
+        notify "Connected" "$name"
+    else
+        notify "Could not connect" "$name"
+    fi
+    ;;
+disconnect)
+    bt disconnect "$target" >/dev/null || true
+    notify "Disconnected" "$name"
+    ;;
+esac

@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# The edit loop for roles/hyprland/files/hyprland.lua: copy the config into
-# place and reload the running compositor. Equivalent to
+# The edit loop for the session's config — hyprland.lua and the waybar files
+# beside it: copy them into place and reload what is running. Equivalent to
 # `./run.sh hyprland && hyprctl reload`, minus the COPR and package work — this
 # gets run after every tweak, and none of that needs re-checking each time.
 #
-# Runs the `hyprland-config` tag, which is only on the two config tasks in
-# roles/hyprland/tasks/main.yml. Use ./run.sh hyprland for the full role.
+# Runs the `hyprland-config` tag, which is only on the config tasks in
+# roles/hyprland/tasks/main.yml. Use ./run.sh hyprland for the full role. Waybar
+# reloads itself through that role's handler; the hyprctl call below is for the
+# compositor.
 set -euo pipefail
 cd "$(dirname "$0")"
 

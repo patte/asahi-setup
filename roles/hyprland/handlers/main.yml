@@ -1,0 +1,10 @@
+---
+# SIGUSR2 is waybar's reload — it rereads the config and the stylesheet without
+# dropping off the screen. rc 1 is pkill for "nothing matched", which is the
+# normal answer outside a running session, so only a signal actually delivered
+# counts as a change.
+- name: Reload waybar
+  ansible.builtin.command: pkill -SIGUSR2 --exact waybar
+  register: waybar_reload
+  changed_when: waybar_reload.rc == 0
+  failed_when: waybar_reload.rc not in [0, 1]

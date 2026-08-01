@@ -55,7 +55,12 @@ hyprland_copr_packages:
   - hyprpolkitagent
 
 # From Fedora: everything a bare compositor does not come with. Stock configs
-# for now — bar/menu/notification styling is a later pass.
+# except the bar's, which cannot be — see the waybar tasks in the role.
+#
+# The last four are what the bar's click menus shell out to, and only one of them
+# is a given on a Workstation install. bluez and libnotify come in with GNOME;
+# pipewire-pulseaudio is the sound server, but `pactl` is not in it — that lives
+# in pulseaudio-utils, which nothing here would otherwise pull.
 hyprland_packages:
   - waybar
   - wofi
@@ -65,6 +70,10 @@ hyprland_packages:
   - wl-clipboard
   - brightnessctl
   - playerctl
+  - bluez
+  - libnotify
+  - pipewire-pulseaudio
+  - pulseaudio-utils
 
 # --- rust -------------------------------------------------------------------
 rust_toolchain: stable

@@ -1,0 +1,157 @@
+// The bar. Ported from /etc/xdg/waybar/config.jsonc rather than written fresh:
+// same modules, same formats, same icons — waybar's stock config is a good bar,
+// and the styling still comes from there too, since narchy only appends its
+// palette to the style.css it seeded from /etc/xdg.
+//
+// What is ours:
+//
+//   * The workspaces module is `hyprland/workspaces`. Stock names
+//     `sway/workspaces`, which under Hyprland renders nothing at all — the
+//     whole left half of the bar was empty.
+//   * pulseaudio and bluetooth open the pickers in scripts/ on a click. That is
+//     the GNOME quick-settings behaviour: choose an output, toggle the radio,
+//     connect something already paired. Stock points pulseaudio at pavucontrol,
+//     which is a GUI app we do not install.
+//   * No window title. `hyprland/window` is the obvious thing to put in the
+//     centre and it is not wanted: the title is already in the window, and a
+//     bar that rewrites itself on every focus change is a distraction.
+//   * The wifi network's name is behind a click. It does not change and it is
+//     the longest thing on the bar, so by default the module is one icon; click
+//     it for the name and signal, click again to put it away. Details are in
+//     the tooltip either way.
+//   * No backlight. The brightness keys already do the job and report it
+//     themselves; there was nothing to read on the bar. It was also the only
+//     coloured thing on it — stock draws it with the moon-phase emoji, which
+//     comes out of Noto Color Emoji, the one glyph here no palette could touch.
+//   * The modules with no backing on this machine are gone: mpd, custom/media
+//     (wants a mediaplayer.py the package does not ship), custom/power,
+//     keyboard-state, and battery#bat2 on a laptop with one battery. So is
+//     idle_inhibitor, which is subtler — it holds a wayland idle-inhibit lock,
+//     and with no hypridle installed and no idle or dpms timeout set in
+//     hyprland.lua there is nothing idling for it to hold off. Put it back when
+//     something starts blanking the screen.
+//
+// Every icon is a Font Awesome codepoint, and none of them are in the fonts
+// style.css names first — fontconfig falls back to AdwaitaMono Nerd Font, which
+// carries that range. So the glyphs here are invisible in most editors and
+// impossible to type: copy them, or read them out of the stock config.
+{
+    "height": 30,
+    "spacing": 4,
+
+    "modules-left": ["hyprland/workspaces", "hyprland/submap"],
+    "modules-right": [
+        "pulseaudio",
+        "bluetooth",
+        "network",
+        "power-profiles-daemon",
+        "cpu",
+        "memory",
+        "temperature",
+        "battery",
+        "clock",
+        "tray"
+    ],
+
+    "hyprland/submap": {
+        "format": "<span style=\"italic\">{}</span>",
+        "tooltip": false
+    },
+
+    // Left click picks the output, right click mutes, scroll moves the volume.
+    "pulseaudio": {
+        "format": "{volume}% {icon} {format_source}",
+        "format-bluetooth": "{volume}% {icon} {format_source}",
+        "format-bluetooth-muted": " {icon} {format_source}",
+        "format-muted": " {format_source}",
+        "format-source": "{volume}% ",
+        "format-source-muted": "",
+        "format-icons": {
+            "headphone": "",
+            "hands-free": "",
+            "headset": "",
+            "phone": "",
+            "portable": "",
+            "car": "",
+            "default": ["", "", ""]
+        },
+        "on-click": "$HOME/.config/waybar/scripts/audio-output",
+        "on-click-right": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
+    },
+
+    // The module needs no config to find bluez — it watches DBus — so all of
+    // this is presentation. Off is the same glyph at reduced alpha rather than a
+    // second icon: Font Awesome has no crossed-out bluetooth, and the module
+    // must stay on the bar while it is off or there would be nothing to click
+    // to turn it back on.
+    "bluetooth": {
+        "format": "",
+        "format-disabled": "<span alpha='40%'></span>",
+        "format-off": "<span alpha='40%'></span>",
+        "format-connected": " {num_connections}",
+        "tooltip-format": "Bluetooth {status}",
+        "tooltip-format-connected": "{controller_alias}\n{device_enumerate}",
+        "tooltip-format-enumerate-connected": "{device_alias}",
+        "on-click": "$HOME/.config/waybar/scripts/bluetooth"
+    },
+
+    // format-alt is what the click toggles, and there is only one of it, so it
+    // says essid: this machine has no ethernet port, and a dongle's alternate
+    // reading blank is a fair trade for the name being one click away. The
+    // tooltips need no click at all.
+    "network": {
+        "format-wifi": "",
+        "format-ethernet": "",
+        "format-linked": "{ifname} (No IP) ",
+        "format-disconnected": "Disconnected ⚠",
+        "format-alt": "{essid} ({signalStrength}%) ",
+        "tooltip-format-wifi": "{essid} ({signalStrength}%)\n{ifname} via {gwaddr}",
+        "tooltip-format-ethernet": "{ipaddr}/{cidr}\n{ifname} via {gwaddr}",
+        "tooltip-format-disconnected": "Disconnected"
+    },
+
+    "power-profiles-daemon": {
+        "format": "{icon}",
+        "tooltip-format": "Power profile: {profile}\nDriver: {driver}",
+        "tooltip": true,
+        "format-icons": {
+            "default": "",
+            "performance": "",
+            "balanced": "",
+            "power-saver": ""
+        }
+    },
+
+    "cpu": {
+        "format": "{usage}% ",
+        "tooltip": false
+    },
+    "memory": {
+        "format": "{}% "
+    },
+    "temperature": {
+        "critical-threshold": 80,
+        "format": "{temperatureC}°C {icon}",
+        "format-icons": ["", "", ""]
+    },
+    "battery": {
+        "states": {
+            "warning": 30,
+            "critical": 15
+        },
+        "format": "{capacity}% {icon}",
+        "format-full": "{capacity}% {icon}",
+        "format-charging": "{capacity}% ",
+        "format-plugged": "{capacity}% ",
+        "format-alt": "{time} {icon}",
+        "format-icons": ["", "", "", "", ""]
+    },
+
+    "clock": {
+        "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>",
+        "format-alt": "{:%Y-%m-%d}"
+    },
+    "tray": {
+        "spacing": 10
+    }
+}
