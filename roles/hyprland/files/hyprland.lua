@@ -459,6 +459,34 @@ hl.window_rule({
     suppress_event = "maximize",
 })
 
+hl.layer_rule({
+    -- The launcher opens with a long, off-centre swell without this, and the
+    -- cause is not where it looks. wofi commits its layer surface twice: GTK
+    -- puts up a 50x40 placeholder before it has measured anything, then resizes
+    -- to the real 976x496. Both are centred, so the geometry is never actually
+    -- wrong — what is wrong is the transition between them.
+    --
+    -- Hyprland animates that resize on the layers curve, and a layer's buffer is
+    -- drawn 1:1 from the box's top-left and clipped, never scaled to fit. So the
+    -- list is painted at its final size inside a box that starts at the centre
+    -- of the screen and grows outwards: the visible content begins below and to
+    -- the right of where it belongs and slides up and left into place. On the
+    -- stock global curve that takes most of a second, since "default" spends
+    -- half its duration on the last 5% of the distance.
+    --
+    -- There is nothing to fix on the animation itself. The style only picks the
+    -- map-in transition, and a resize is animated whichever one is set — "fade"
+    -- was tried and changes none of the above. Suppressing the animation for
+    -- this one namespace is the fix, and it is the right scope anyway: waybar
+    -- and mako map at the size they mean to keep, so their animations are fine
+    -- and stay on. The dmenu popups the bar's scripts shell out to are wofi too,
+    -- and get the same treatment for the same reason.
+    name  = "wofi-maps-twice",
+    match = { namespace = "^wofi$" },
+
+    no_anim = true,
+})
+
 hl.window_rule({
     -- Upstream's fix for XWayland drag-and-drop losing focus.
     name  = "fix-xwayland-drags",
