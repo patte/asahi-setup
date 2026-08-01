@@ -61,13 +61,19 @@
         "tooltip": false
     },
 
+    // Percentages are padded to three columns, right aligned, so a module keeps
+    // one width from 0 to 100 and nothing to its left shifts when a number gains
+    // or loses a digit. waybar formats through fmt, so the field spec is fmt's:
+    // `{volume:>3}` is a width of three and a right align. The font is monospace,
+    // so three columns is three digits' worth of room whatever fills them.
+    //
     // Left click picks the output, right click mutes, scroll moves the volume.
     "pulseaudio": {
-        "format": "{volume}% {icon} {format_source}",
-        "format-bluetooth": "{volume}% {icon} {format_source}",
+        "format": "{volume:>3}% {icon} {format_source}",
+        "format-bluetooth": "{volume:>3}% {icon} {format_source}",
         "format-bluetooth-muted": " {icon} {format_source}",
         "format-muted": " {format_source}",
-        "format-source": "{volume}% ",
+        "format-source": "{volume:>3}% ",
         "format-source-muted": "",
         "format-icons": {
             "headphone": "",
@@ -133,11 +139,11 @@
     },
 
     "cpu": {
-        "format": "{usage}% ",
+        "format": "{usage:>3}% ",
         "tooltip": false
     },
     "memory": {
-        "format": "{}% "
+        "format": "{:>3}% "
     },
     "temperature": {
         "critical-threshold": 80,
@@ -149,10 +155,10 @@
             "warning": 30,
             "critical": 15
         },
-        "format": "{capacity}% {icon}",
-        "format-full": "{capacity}% {icon}",
-        "format-charging": "{capacity}% ",
-        "format-plugged": "{capacity}% ",
+        "format": "{capacity:>3}% {icon}",
+        "format-full": "{capacity:>3}% {icon}",
+        "format-charging": "{capacity:>3}% ",
+        "format-plugged": "{capacity:>3}% ",
         "format-alt": "{time} {icon}",
         "format-icons": ["", "", "", "", ""]
     },
