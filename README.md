@@ -12,9 +12,11 @@ Opinionated setup for my Fedora Asahi Workstation
 ./run.sh --check        # dry run, changes nothing
 ./run.sh --list         # list roles
 ./run.sh fairydust      # the kernel build, deliberately
+./hypr.sh               # hyprland config only, then hyprctl reload
 ```
 
-Flags pass through to `ansible-playbook`, so `./run.sh titdb --diff -v` works.
+Flags pass through to `ansible-playbook`, so `./run.sh titdb --diff -v` works —
+`./hypr.sh --diff` too.
 
 ## Where this starts
 
@@ -73,6 +75,12 @@ when there is no `.lua`. It is deliberately minimal: waybar, wofi and mako run
 on stock configs, and there is no wallpaper, colour scheme or animation tuning
 yet. Not done yet, on purpose: a lock screen (`hyprlock`), an idle daemon
 (`hypridle`) and lid/suspend behaviour.
+
+Editing it is a tight enough loop to deserve its own entry point: `./hypr.sh`
+runs the `hyprland-config` tag — the two tasks that place the file, nothing
+else — and then `hyprctl reload`. No sudo, since the COPR and package tasks are
+not in the tag. Use `./run.sh hyprland` when the packages themselves need
+attention.
 
 ## Source of truth
 

@@ -47,6 +47,7 @@
     state: present
 
 - name: Ensure the hypr config directory exists
+  tags: [hyprland-config]
   ansible.builtin.file:
     path: "{{ ansible_facts['user_dir'] }}/.config/hypr"
     state: directory
@@ -55,7 +56,12 @@
 # Hyprland 0.5x looks for ~/.config/hypr/hyprland.lua first and only falls back
 # to the old hyprlang hyprland.conf when no .lua exists. New config, so it is
 # the lua one — do not add a hyprland.conf next to it, it would be dead weight.
+#
+# This task and the directory above carry the extra `hyprland-config` tag: they
+# are the whole of what ./hypr.sh runs, which is the edit loop for the config.
+# Anything added here that is not pure config must stay untagged.
 - name: Install the hyprland config
+  tags: [hyprland-config]
   ansible.builtin.copy:
     src: hyprland.lua
     dest: "{{ ansible_facts['user_dir'] }}/.config/hypr/hyprland.lua"
