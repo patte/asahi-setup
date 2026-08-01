@@ -101,6 +101,42 @@
     - audio-output
     - bluetooth
 
+# The stylesheet is shared with narchy, so it is assembled rather than owned:
+# seeded once from the stock one for waybar's own layout rules, then imported
+# into. narchy does the same thing from the other side — it prepends a palette
+# import and appends a theme import, both idempotently — and the two only
+# coexist because neither rewrites the file.
+#
+# force: false is the whole of that promise. Never turn it into a plain copy: it
+# would drop narchy's import lines on every run and leave the bar unthemed until
+# the next `narchy link`.
+- name: Seed the waybar stylesheet from the stock one
+  tags: [hyprland-config]
+  ansible.builtin.copy:
+    src: /etc/xdg/waybar/style.css
+    remote_src: true
+    dest: "{{ ansible_facts['user_dir'] }}/.config/waybar/style.css"
+    force: false
+    mode: "0644"
+
+- name: Install the waybar metrics stylesheet
+  tags: [hyprland-config]
+  ansible.builtin.template:
+    src: waybar/metrics.css.j2
+    dest: "{{ ansible_facts['user_dir'] }}/.config/waybar/metrics.css"
+    mode: "0644"
+  notify: Reload waybar
+
+# Last, so it wins the properties it sets — though it sets none that narchy's
+# imports also do, which is the point of keeping colour out of it.
+- name: Import the metrics stylesheet from the waybar stylesheet
+  tags: [hyprland-config]
+  ansible.builtin.lineinfile:
+    path: "{{ ansible_facts['user_dir'] }}/.config/waybar/style.css"
+    line: '@import "{{ ansible_facts["user_dir"] }}/.config/waybar/metrics.css";'
+    state: present
+  notify: Reload waybar
+
 # Nothing to enable or start: the package drops hyprland.desktop into
 # /usr/share/wayland-sessions/, so the session shows up at the GDM gear icon
 # next to GNOME. GDM remembers the last choice per user, so GNOME stays the

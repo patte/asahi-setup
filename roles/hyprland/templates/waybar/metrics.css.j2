@@ -1,0 +1,78 @@
+/* Metrics for the bar — fonts and spacing, and deliberately no colours.
+ *
+ * narchy owns every colour in the bar, through two @import lines it keeps in
+ * style.css. This file is imported alongside them for the things a palette has
+ * no opinion about, and must stay out of their way: nothing in here sets a
+ * colour, so the two can never disagree.
+ */
+
+/* One font, so the icons agree with each other.
+ *
+ * Stock names Font Awesome 6 Free and Brands after the text font, so every
+ * glyph resolves on its own and lands wherever it first hits. bluetooth is a
+ * brands glyph and arrives from a 400-weight face 10px wide; the power-profile
+ * scales come from Free's 900-weight Solid at 25px; the wifi arc and the cpu
+ * die come from a Nerd Font at 20-24px — all at the same font-size, on the same
+ * bar. Name one font that has all of them instead, drawn to one design size.
+ *
+ * {{ waybar_font_family }} is that font: it carries every codepoint this bar's config
+ * uses, which is more than AdwaitaMono manages — that one is missing the muted
+ * speaker, the ethernet plug, the charging bolt, the headset and both outer
+ * thermometers. It has to be a family the fonts role installs; see
+ * fonts_enabled, and note this is a Nerd-patched family, not a stock one, or
+ * there would be no icons at all.
+ */
+* {
+  font-family: "{{ waybar_font_family }}", monospace;
+}
+
+/* Equal air on either side of every module.
+ *
+ * Stock hands `padding: 0 10px` to a list of fifteen module ids, and #bluetooth
+ * is on none of them — the stylesheet predates the module, and the word appears
+ * nowhere in it — so bluetooth sits flush against its neighbours while the rest
+ * breathe. power-profiles-daemon is the opposite case, on the list and then
+ * given another 15px on the right of its own. Between the two, the gaps down
+ * the right of the bar ran from 21px to 38px.
+ *
+ * So name the ten modules this bar actually has, rather than inheriting a list
+ * written for a different one, and give them all the same. Waybar's own
+ * `spacing` adds 4px between widgets on top of this; it is even everywhere and
+ * not what was wrong.
+ */
+#pulseaudio, #bluetooth, #network, #power-profiles-daemon, #cpu, #memory,
+#temperature, #battery, #clock, #tray {
+  padding: 0 10px;
+}
+
+/* Even air above and below, and less of it.
+ *
+ * Stock's 3px border along the bottom is inside the bar's height rather than
+ * added to it, and the modules centre in the whole of that — so the row of
+ * glyphs lined up with the middle of bar-plus-border while the border read as an
+ * edge, which put 13px of air above the row against 7 below. Padding the
+ * border's own width back does not fix it: GTK does not move the modules for
+ * padding on the window. Dropping the width does.
+ *
+ * The width only, so narchy's border colour stays declared and simply goes
+ * unused. This file has no business setting a colour, not even to none.
+ */
+window#waybar {
+  border-bottom-width: 0;
+}
+
+/* And this is what actually decides how tall the bar is.
+ *
+ * `height` in config.jsonc is a minimum, not a height — the bar is as tall as
+ * the tallest thing in it, and that was never the text. GTK gives every button a
+ * min-height of its own (24px under Adwaita), so the four workspace buttons held
+ * the whole bar open at 24 no matter what the config asked for: 30 gave 30, but
+ * 24 and 21 both gave 24. The font is not the floor either, and is not the knob
+ * — 11px text still measured 24 tall.
+ *
+ * Releasing the buttons lets `height` bind, and at 21 the row lands centred:
+ * 9px above the text and 9 below, where before it was 12 and 10.
+ */
+#workspaces button {
+  min-height: 0;
+}

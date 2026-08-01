@@ -75,6 +75,12 @@ hyprland_packages:
   - pipewire-pulseaudio
   - pulseaudio-utils
 
+# The one font the bar draws everything with, text and icons alike. Must be a
+# Nerd-patched family — the icons are Font Awesome codepoints and a stock family
+# has none of them — and must be in fonts_enabled below, or the role installs
+# something the bar never asks for and asks for something nothing installed.
+waybar_font_family: SFMono Nerd Font
+
 # --- rust -------------------------------------------------------------------
 rust_toolchain: stable
 

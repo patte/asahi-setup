@@ -36,7 +36,10 @@
 // carries that range. So the glyphs here are invisible in most editors and
 // impossible to type: copy them, or read them out of the stock config.
 {
-    "height": 30,
+    // A minimum, not a height: the bar is as tall as the tallest thing in it.
+    // 21 only takes effect because metrics.css releases the min-height GTK puts
+    // on the workspace buttons — see the comment there before changing this.
+    "height": 21,
     "spacing": 4,
 
     "modules-left": ["hyprland/workspaces", "hyprland/submap"],
@@ -80,15 +83,22 @@
     },
 
     // The module needs no config to find bluez — it watches DBus — so all of
-    // this is presentation. Off is the same glyph at reduced alpha rather than a
-    // second icon: Font Awesome has no crossed-out bluetooth, and the module
-    // must stay on the bar while it is off or there would be nothing to click
-    // to turn it back on.
+    // this is presentation.
+    //
+    // The glyph is the enclosed bluetooth, U+F293, not the bare rune U+F294 that
+    // reads as the obvious choice. The rune is drawn as a narrow upright mark:
+    // at the same font-size as every other icon it covers 11px against their
+    // 20-23 and looks shrunken next to them, where the enclosed one fills the
+    // same box as the speaker and the battery.
+    //
+    // Off is that glyph at reduced alpha rather than a second icon: Font Awesome
+    // has no crossed-out bluetooth, and the module must stay on the bar while it
+    // is off or there would be nothing to click to turn it back on.
     "bluetooth": {
-        "format": "",
-        "format-disabled": "<span alpha='40%'></span>",
-        "format-off": "<span alpha='40%'></span>",
-        "format-connected": " {num_connections}",
+        "format": "",
+        "format-disabled": "<span alpha='40%'></span>",
+        "format-off": "<span alpha='40%'></span>",
+        "format-connected": " {num_connections}",
         "tooltip-format": "Bluetooth {status}",
         "tooltip-format-connected": "{controller_alias}\n{device_enumerate}",
         "tooltip-format-enumerate-connected": "{device_alias}",
