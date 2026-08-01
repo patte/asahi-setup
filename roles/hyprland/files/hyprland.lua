@@ -140,23 +140,63 @@ local ZOOM_GESTURE_RATE = 0.008
 -- Inertia, for the swipe only. Lifting the fingers hands the zoom over to a
 -- velocity that decays exponentially with this time constant, so the zoom keeps
 -- running and eases out instead of stopping dead. ~4.5 time constants until it
--- is spent, so 220 gives a coast of about a second.
+-- is spent, so 130 gives a coast of about 600ms.
 --
 -- Same model Apple uses: UIScrollView.decelerationRate is a per-millisecond
 -- factor on velocity, i.e. exponential decay. Its two documented values convert
 -- to time constants of -1/ln(rate): .normal = 0.998 is 499ms, .fast = 0.99 is
--- 99ms. 220 sits between them, nearer fast. Apple publishes no constant for the
--- zoom inertia itself, so those are the closest documented reference points.
--- .fast was tried here and is too abrupt; 220 is the keeper.
-local ZOOM_FLING_TIME   = 220   -- ms
--- Ceiling on what one fling may add, as an exponent: e^0.8 is about 2.2x. The
+-- 99ms. Apple publishes no constant for the zoom inertia itself, so those are
+-- the closest documented reference points.
+--
+-- 220 was tried and is too long, because the coast is velocity * this constant
+-- and the swipe velocities here are high: an ordinary unhurried swipe runs at
+-- ~0.006 exponent/ms, so 220 coasts a further e^1.3, nearly 4x, every single
+-- time you lift off. That reads as the zoom refusing to stop.
+local ZOOM_FLING_TIME   = 130   -- ms
+-- Ceiling on what one fling may add, as an exponent: e^1.45 is about 4.3x. The
 -- coast is the integral of a decaying velocity, which is velocity * time
 -- constant, so capping the handover velocity at MAX/TIME bounds the whole
 -- coast no matter how hard the swipe was flicked.
-local ZOOM_FLING_MAX    = 0.8
+--
+-- These two are coupled and must be tuned together. MAX/TIME has to stay above
+-- ordinary swipe velocity or the cap stops being a ceiling and becomes the only
+-- value: at 0.8/220 it sat at 0.0036, below the 0.005-0.01 an unhurried swipe
+-- produces, so every release clamped to it and a flick and a steady lift-off
+-- came out identical — the zoom ended slow every time, whatever you did.
+-- Lengthening the coast therefore means raising MAX in step; 1.45/130 holds the
+-- cap at 0.011, which only a real flick reaches.
+local ZOOM_FLING_MAX    = 1.45
 local ZOOM_FLING_TICK   = 8     -- ms between coast frames, ~120Hz
 -- Below this exponent-per-ms a fling is really a slow release, so it just stops.
-local ZOOM_FLING_MIN    = 0.00005
+-- Decelerating before lifting drops the smoothed velocity well under this; only
+-- lifting while still moving gets a coast. The old 0.00005 was ~100x below any
+-- real swipe, so nothing ever took that branch.
+local ZOOM_FLING_MIN    = 0.002
+
+-- cursor:zoom_factor is an animated property, so Hyprland eases towards every
+-- value set below rather than jumping to it. Left alone it inherits the global
+-- animation: 800ms on the "default" bezier, which spends half its duration on
+-- the last 5% of the distance. That tail is a second ease-out underneath the
+-- coast above, and it interpolates linearly in the factor while the eye reads
+-- zoom logarithmically — so settling to 1x crawls visibly through the last
+-- 1.5x-1.0x while the same residual at 12x is invisible. Zooming out always
+-- ended slow because of it.
+--
+-- Short on purpose. The gesture retargets this every few ms, so the animation's
+-- job here is only to smooth between libinput events; the feel comes from the
+-- swipe and the coast, and a long curve here just fights them. 100ms is long
+-- enough to hide the event granularity and short enough not to lag the finger.
+--
+-- "quick" is upstream's own name and control points for this curve, and what
+-- their example config puts on zoomFactor. Only "linear" and "default" are
+-- built in, so it has to be defined before it can be named. Its tail is 31% of
+-- the duration for the last 5% of the distance — at 100ms that is 31ms, short
+-- enough not to reintroduce the crawl, while still landing softer than linear.
+-- That softness is mostly for the mouse wheel below, where each notch is a
+-- single step and linear reads as mechanical.
+hl.curve("quick", { type = "bezier", points = { {0.15, 0}, {0.1, 1} } })
+
+hl.animation({ leaf = "zoomFactor", enabled = true, speed = 1, bezier = "quick" })
 
 -- Zoom by an exponent, clamped. Returns where it landed so the coast can tell
 -- it has hit a limit and stop pushing against it.
