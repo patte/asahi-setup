@@ -19,6 +19,11 @@ login_shell: /usr/bin/zsh
 # installer produces. Fedora's atuin package installs to /usr/bin instead.
 atuin_version: v18.18.1
 
+# The prompt. Not packaged for Fedora, but upstream ships a static aarch64-musl
+# binary per release. Bumping this version is the whole reinstall trigger, so
+# unlike atuin above there is no `creates:` guard to delete first.
+starship_version: v1.26.0
+
 # --- copr -------------------------------------------------------------------
 # The copr module derives the chroot from /etc/os-release ID, which on this box
 # is `fedora-asahi-remix` — not a chroot any COPR actually builds for. Asahi

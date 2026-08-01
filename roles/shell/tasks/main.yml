@@ -35,6 +35,41 @@
     dest: "{{ ansible_facts['user_dir'] }}/.config/atuin/config.toml"
     mode: "0600"
 
+# .zshrc runs `starship init zsh`, so like atuin the binary has to exist before
+# the first login. Fedora does not package starship, and upstream publishes a
+# static aarch64-musl binary per release, so take that — a cargo build would
+# put the shell role behind the rust one for no gain.
+- name: Ensure ~/.local/bin exists
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.local/bin"
+    state: directory
+    mode: "0755"
+
+# The version in the tarball name is the whole install guard: no `creates:`,
+# because that would ignore a version bump in group_vars. Skipped in check
+# mode, where the install below then always reports a change.
+- name: Check the installed starship
+  ansible.builtin.command: "{{ ansible_facts['user_dir'] }}/.local/bin/starship --version"
+  register: starship_current
+  changed_when: false
+  failed_when: false
+
+- name: Install starship {{ starship_version }}
+  ansible.builtin.unarchive:
+    src: >-
+      https://github.com/starship/starship/releases/download/{{ starship_version }}/starship-{{ ansible_facts['architecture'] }}-unknown-linux-musl.tar.gz
+    dest: "{{ ansible_facts['user_dir'] }}/.local/bin"
+    remote_src: true
+    # The tarball ships the binary 0644.
+    mode: "0755"
+  when: starship_version | regex_replace('^v', '') not in starship_current.stdout | default('')
+
+- name: Install the starship config
+  ansible.builtin.copy:
+    src: starship.toml
+    dest: "{{ ansible_facts['user_dir'] }}/.config/starship.toml"
+    mode: "0644"
+
 - name: Install .zshrc
   ansible.builtin.copy:
     src: zshrc

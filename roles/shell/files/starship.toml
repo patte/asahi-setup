@@ -1,0 +1,6 @@
+# The backslash is required: a bare `$` opens a variable name in a starship
+# format string, which is the `expected variable_name` parse error. Single
+# quotes so TOML leaves the backslash alone.
+[character]
+success_symbol = '[\$](bold green)'
+error_symbol = '[\$](bold red)'

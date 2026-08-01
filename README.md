@@ -32,7 +32,7 @@ From there `./run.sh` should get everything else back.
 | Role | What it does |
 |---|---|
 | `base` | The packages actually installed by hand, `~/src` |
-| `shell` | zsh + login shell, `.zshrc` / `.zshenv`, atuin and its config |
+| `shell` | zsh + login shell, `.zshrc` / `.zshenv`, atuin and starship, with their configs |
 | `rust` | rustup, the default toolchain, `rust-src`, `bindgen-cli` |
 | `fonts` | The families in `fonts_enabled` into `~/.local/share/fonts` (knows DM Mono, JetBrains Mono, SF Mono, Tabular) |
 | `ghostty` | scottames COPR, ghostty, templated config (Ayu theme, font from `ghostty_font_family`) |
@@ -43,6 +43,33 @@ From there `./run.sh` should get everything else back.
 | `titdb` | Builds trackpad-is-too-damn-big, installs binary + unit, enables it |
 | `hyprland` | sdegler COPR (scoped), the hypr stack, waybar/wofi/mako, `hyprland.lua` |
 | `fairydust` | Builds and installs the patched Asahi kernel. Tagged `never`, needs `rust` |
+
+### The prompt
+
+[starship](https://starship.rs), stock but for the prompt character:
+
+```
+asahi-setup on  main [!?⇡1] took 4s
+$
+```
+
+It replaced a hand-written zsh prompt that used to sit at the top of `.zshrc`,
+and nothing of that was carried over. Tuning goes in
+`roles/shell/files/starship.toml` and is applied by `./run.sh shell` — the role
+overwrites `~/.config/starship.toml`, so hand-edits there do not survive.
+
+The branch glyph needs a Nerd Font — see the `fonts` role.
+
+starship is not in Fedora, so the role takes the static aarch64-musl tarball
+from upstream's releases and drops the binary in `~/.local/bin`, which is why
+the `starship init` line in `.zshrc` sits *below* the `PATH` export.
+
+[jj-starship](https://github.com/dmmulroy/jj-starship) is what to add here if
+[jj](https://jj-vcs.github.io/jj/) ever gets used: starship has no jj module,
+so in a jj repo the built-in `git_*` ones show the stale underlying ref or
+nothing at all. It is a single binary starship execs per prompt, and it covers
+git as well, so `git_branch`, `git_status` and `git_commit` get disabled
+alongside it.
 
 ### fairydust needs rust
 
@@ -137,3 +164,5 @@ Source builds are guarded so re-runs are cheap. To force one:
   `keyd --version`)
 - titdb: bump `titdb_commit`, then delete
   `~/src/trackpad-is-too-damn-big/build/titdb`
+- starship: bump `starship_version` and that is all — the task compares against
+  `--version` rather than guarding on the file, so there is nothing to delete
