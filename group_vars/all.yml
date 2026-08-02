@@ -11,6 +11,7 @@ base_packages:
   - neovim
   - gh
   - yubikey-manager
+  - vlc
 
 # --- shell ------------------------------------------------------------------
 # zsh itself is installed by the shell role, since that role owns the config.
