@@ -4,6 +4,46 @@
 target_user: patte
 src_dir: "/home/{{ target_user }}/src"
 
+# --- steam ------------------------------------------------------------------
+# steam pulls muvm, libkrun and FEX in as dependencies. dbus-daemon is the one
+# addition: the wrapper starts a bus inside the microVM, and the guest runs the
+# host's binaries over virtiofs, so it has to be installed out here.
+steam_packages:
+  - steam
+  - dbus-daemon
+
+steam_desktop_dir: "/home/{{ target_user }}/.local/share/applications"
+steam_packaged_wrapper: /usr/bin/steam
+
+# XDG data dir Valve's launcher is unpacked into, under ~/.local/share. Matches
+# LAUNCHER_NAME in the packaged wrapper — change one and the wrapper stops
+# finding what the rpm downloaded.
+steam_launcher_name: fex-steam
+
+# Kernels where any GPU client inside a muvm microVM brings the VM down with
+# `Failure during vcpu run: Bad address (os error 14)`, which is AsahiLinux/muvm#240.
+# 7.1.5 is the confirmed one; the rest of 7.1 is assumed until the issue is
+# resolved, so narrow this the moment a 7.1.x is shown to work.
+steam_broken_kernel_regex: '^7\.1\.'
+
+# The kernel to fall back to, in both the forms that are needed: `uname -r` for
+# messages, and rpm's EVR for the packages themselves.
+steam_known_good_kernel: 7.0.13-400.asahi.fc44.aarch64+16k
+steam_kernel_evr: 7.0.13-400.asahi.fc44
+steam_kernel_packages:
+  - kernel-16k
+  - kernel-16k-core
+  - kernel-16k-modules
+  - kernel-16k-modules-core
+  - kernel-16k-modules-extra
+
+# Only referenced in the wrapper's comment about scaling, which is a thing the
+# wrapper cannot fix: Valve removed STEAM_FORCE_DESKTOPUI_SCALING and
+# -forcedesktopscaling, so the UI scale is now a per-account Steam setting under
+# Settings -> Accessibility. Keep this equal to the monitor geometry in
+# roles/hyprland/files/hyprland.lua.
+steam_panel_geometry: 2880x1800
+
 # --- base -------------------------------------------------------------------
 base_packages:
   - dnf-plugins-core

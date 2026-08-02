@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+# Steam on Fedora Asahi Remix, with the two things the packaged launcher gets
+# wrong on this box fixed. Installed by roles/steam — edit it there, not here.
+#
+# The packaged /usr/bin/steam is left alone; ~/.local/share/applications/
+# steam.desktop points the menu entry at this instead.
+#
+#   1. A D-Bus *system* bus inside the microVM.
+#
+#      Steam gates its login UI on creating a NetworkManager client, and
+#      NetworkManager lives on the system bus. muvm's guest gets a session bus
+#      (auto-launched) but no system bus at all, so the client fails to come up:
+#
+#        Init: failed to create a NetworkManager client
+#        Initialized CSteamUINetworkController: 0
+#        -> SteamClient.System.Network.RegisterForDeviceChanges is not a function
+#        -> SystemNetworkStore throws, and the UI sits on "Waiting for network..."
+#
+#      forever, while the network is in fact perfectly fine — Steam's own
+#      connectivity tests pass over both IPv4 and IPv6. libnm only needs a bus it
+#      can reach; NetworkManager does not have to be on it. Pointing
+#      DBUS_SYSTEM_BUS_ADDRESS at any daemon started inside the guest is enough:
+#
+#        Init: create NetworkManager client: success
+#        Initialized CSteamUINetworkController: 1
+#
+#      Running the real NetworkManager in the guest is not the answer, and was
+#      tried: there is no udev in there to realise the device, so eth0 stays
+#      `unmanaged` and NM reports `disconnected` however it is prodded. An empty
+#      bus is both simpler and more truthful. It is started with --session
+#      because that config is permissive and needs no /run/dbus or root; nothing
+#      but Steam ever connects to it. See AsahiLinux/muvm#6.
+#
+#      The tidy way to do this would be `muvm -x`, which runs a command in the
+#      guest as root before the payload. It is broken in muvm 0.6.0 — even
+#      `-x 'touch /tmp/xtest'` stops the payload running at all — so the bus is
+#      started from inside the guest shell instead.
+#
+# What this deliberately does *not* do is set the UI scale.
+#
+# hyprland.lua sets xwayland.force_zero_scaling, which hands XWayland clients
+# the raw {{ steam_panel_geometry }} panel and expects each toolkit to scale itself.
+# QT_SCALE_FACTOR covers the Qt ones, but Steam is neither Qt nor GTK, so it
+# draws 1:1 and comes out tiny — its own log agrees:
+#
+#   Display[33] bounds=[0,0 {{ steam_panel_geometry }}], workarea=[0,0 {{ steam_panel_geometry }}], scale=1
+#
+# There used to be two knobs for this, STEAM_FORCE_DESKTOPUI_SCALING and
+# -forcedesktopscaling. Valve removed both when the Accessibility tab was added,
+# and setting the variable now does nothing at all — it reaches the process
+# environment intact and is simply ignored. So the scale lives in Steam's own
+# settings, per account, under Settings -> Accessibility, and there is nothing
+# useful for this wrapper to do about it.
+#
+# Not carried over from the packaged wrapper: the Qt splash. It polls
+# `xwininfo -tree -root` for a window titled "Steam" and the pre-login window is
+# titled "Sign in to Steam", so on a box that is not signed in yet it never
+# clears and covers the sign-in prompt. Nothing here needs it.
+set -euo pipefail
+
+DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/{{ steam_launcher_name }}"
+LAUNCHER="$DATA_DIR/steam-launcher/bin_steam.sh"
+PACKAGED={{ steam_packaged_wrapper }}
+
+# muvm brings the whole microVM down on some kernels the moment any GPU client
+# maps a blob, Steam included. Warn rather than refuse: the kernel list below is
+# a moving target and a wrong entry should not be the thing that stops you
+# playing a game.
+if [[ "$(uname -r)" =~ {{ steam_broken_kernel_regex }} ]]; then
+    cat >&2 <<EOF
+steam-asahi: warning: running $(uname -r).
+
+  This kernel takes the microVM down as soon as Steam touches the GPU:
+
+    ERROR krun_vmm::linux::vstate] Failure during vcpu run: Bad address (os error 14)
+
+  {{ steam_known_good_kernel }} is known good. See AsahiLinux/muvm#240.
+
+  List what is installed, then pick one for the next boot only:
+
+    sudo grubby --info=ALL | grep -E "index|title"
+    sudo grub2-reboot <index>
+    sudo reboot
+
+EOF
+fi
+
+# Valve's launcher tarball is downloaded by the packaged wrapper, not shipped by
+# the rpm, so on a fresh box it is simply not there yet. Rather than pin a URL
+# that goes stale the moment the steam package bumps it, read the one the
+# packaged wrapper would use.
+URL=$(sed -n 's/^URL = "\(.*\)"$/\1/p' "$PACKAGED" 2>/dev/null || true)
+
+if [[ -z $URL ]]; then
+    if [[ ! -f $LAUNCHER ]]; then
+        echo "steam-asahi: no launcher at $LAUNCHER, and no URL found in $PACKAGED" >&2
+        echo "steam-asahi: run $PACKAGED once to bootstrap it, then try again" >&2
+        exit 1
+    fi
+elif [[ ! -f $LAUNCHER || "$(cat "$DATA_DIR/version" 2>/dev/null || true)" != "$URL" ]]; then
+    # Matches what the packaged wrapper records: the URL itself is the version
+    # marker, written last so an interrupted download is retried rather than
+    # taken for a complete one.
+    echo "steam-asahi: bootstrapping the Steam launcher from $URL"
+    mkdir -p "$DATA_DIR"
+    curl -fsSL "$URL" | tar -xz -C "$DATA_DIR" 'steam-launcher/'
+    printf '%s' "$URL" > "$DATA_DIR/version"
+fi
+
+# -cef-force-occlusion is the packaged wrapper's Big Picture performance fix,
+# kept for parity. Anything the caller passes (a steam:// URL from the desktop
+# entry, usually) goes after it.
+args=$(printf ' %q' -cef-force-occlusion "$@")
+
+# $HOME is the same path inside the guest — muvm shares it over virtiofs — so
+# $LAUNCHER needs no translation.
+exec muvm -- sh -c '
+        addr=$(dbus-daemon --session --fork --print-address) || {
+            echo "steam-asahi: could not start a bus in the guest" >&2
+            exit 1
+        }
+        export DBUS_SYSTEM_BUS_ADDRESS="$addr"
+        exec FEXBash -c "$1"
+    ' sh "$LAUNCHER$args"

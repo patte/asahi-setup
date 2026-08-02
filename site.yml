@@ -42,6 +42,13 @@
     - role: titdb
       tags: [titdb]
 
+    # After hyprland would be tidier on paper, since the wrapper's scaling is
+    # the other half of that role's force_zero_scaling. It sits here because
+    # nothing in it reads hyprland's config — steam_ui_scale is the shared
+    # value, and it lives in group_vars where both can see it.
+    - role: steam
+      tags: [steam]
+
     # Additive and reversible: it adds a session next to GNOME and changes
     # nothing about the GNOME one, so it needs no `never` guard.
     - role: hyprland

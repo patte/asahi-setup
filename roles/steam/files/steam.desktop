@@ -1,0 +1,14 @@
+[Desktop Entry]
+# Overrides /usr/share/applications/steam.desktop by living in the user's
+# data dir, which XDG ranks first. Same identity as the packaged entry — same
+# Name, Icon and StartupWMClass, so the launcher and the taskbar still match the
+# window Steam opens — pointed at the wrapper instead. Installed by roles/steam.
+Type=Application
+Name=Steam
+Comment=Play games
+Icon=steam
+TryExec=/usr/local/bin/steam-asahi
+Exec=/usr/local/bin/steam-asahi %U
+Terminal=false
+Categories=Game;
+StartupWMClass=steam

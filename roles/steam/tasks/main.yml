@@ -1,0 +1,65 @@
+---
+# Steam runs inside a muvm microVM under FEX. The rpm supplies a wrapper that
+# downloads Valve's launcher and starts it in there; what it does not supply is
+# a D-Bus system bus inside the guest, without which Steam never gets past
+# "Waiting for network...". roles/steam/templates/steam-asahi.j2 carries the
+# long version of why, next to the code that fixes it.
+
+- name: Install steam and what the wrapper needs
+  become: true
+  ansible.builtin.dnf5:
+    name: "{{ steam_packages }}"
+    state: present
+
+# The GPU passthrough regression is in the kernel, not in Steam or muvm, so the
+# only fix on a box that has taken the update is to boot the older one — which
+# means keeping it on disk. dnf treats kernels as install-only and prunes to
+# installonly_limit (3, unset here), oldest first, so the known-good one is
+# exactly the one a couple of kernel updates would evict.
+#
+# Reinstalling it here rather than raising installonly_limit is deliberate:
+# /boot is 974M and each kernel costs ~185M, so there is room for three and not
+# four. This task is the self-healing half — if a prune takes it, the next run
+# puts it back — and it is a no-op whenever the kernel is already installed.
+- name: Keep the kernel that muvm's GPU passthrough works on
+  become: true
+  ansible.builtin.dnf5:
+    name: "{{ steam_kernel_packages | product([steam_kernel_evr]) | map('join', '-') | list }}"
+    state: present
+
+- name: Install the steam-asahi wrapper
+  become: true
+  ansible.builtin.template:
+    src: steam-asahi.j2
+    dest: /usr/local/bin/steam-asahi
+    mode: "0755"
+
+- name: Make sure the user's desktop entry directory exists
+  ansible.builtin.file:
+    path: "{{ steam_desktop_dir }}"
+    state: directory
+    mode: "0755"
+
+# A user-level entry of the same name wins over the packaged one, so the menu
+# icon reaches the wrapper without the steam rpm being touched. `dnf update
+# steam` cannot clobber this, and deleting the one file puts the stock launcher
+# back.
+- name: Point the Steam menu entry at the wrapper
+  ansible.builtin.copy:
+    src: steam.desktop
+    dest: "{{ steam_desktop_dir }}/steam.desktop"
+    mode: "0644"
+
+# Loud, but not fatal. Installing works fine on any kernel — it is only at
+# launch that the wrong one bites, and the wrapper says so again there. Failing
+# here would take a whole `./run.sh` down over a reboot away from a fix.
+- name: Warn if the running kernel breaks muvm's GPU passthrough
+  ansible.builtin.debug:
+    msg: >-
+      Running {{ ansible_facts['kernel'] }}, which takes the microVM down as
+      soon as Steam touches the GPU (AsahiLinux/muvm#240).
+      {{ steam_known_good_kernel }} is known good and is installed.
+      Pick it for the next boot with:
+      `sudo grubby --info=ALL | grep -E "index|title"`, then
+      `sudo grub2-reboot <index>` and reboot.
+  when: ansible_facts['kernel'] is match(steam_broken_kernel_regex)

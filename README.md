@@ -42,6 +42,7 @@ From there `./run.sh` should get everything else back.
 | `tailscale` | Tailscale repo + key, daemon enabled |
 | `keyswaps` | Builds keyd from source into `/usr/local`, installs the mac-style keymap, enables it |
 | `titdb` | Builds trackpad-is-too-damn-big, installs binary + unit, enables it |
+| `steam` | Steam, plus a wrapper that gives the microVM the D-Bus bus Steam's login needs, and keeps the kernel it can run on |
 | `hyprland` | sdegler COPR (scoped), the hypr stack, waybar/wofi/mako, `hyprland.lua` |
 | `fairydust` | Builds and installs the patched Asahi kernel. Tagged `never`, needs `rust` |
 
@@ -132,6 +133,48 @@ de-duplicates a role that appears twice in a play — so with `fairydust` tagged
 standalone one, which `--tags fairydust` does not select. The kernel build
 would then run without a toolchain. Handling it in `run.sh` is less clever and
 actually works.
+
+### steam needs a kernel and a bus
+
+Steam runs in a muvm microVM under FEX, and two things about that are not
+handled by the packaged launcher.
+
+The kernel is the hard one. On 7.1.5 any GPU client inside the microVM brings
+the whole VM down the moment it maps a blob — `Failure during vcpu run: Bad
+address (os error 14)`, which is [muvm#240][muvm240]. Steam is only the visible
+casualty; a native `glxinfo` does it too. 7.0.13 is known good, so the role
+keeps it installed: dnf prunes kernels oldest-first at `installonly_limit`, and
+the known-good one is exactly what a couple of updates would evict. It is
+reinstalled rather than pinned because /boot is 974M against ~185M a kernel,
+which fits three and not four. Nothing here touches the bootloader — the role
+warns when the running kernel is a bad one and leaves the choice alone:
+
+```sh
+sudo grubby --info=ALL | grep -E "index|title"
+sudo grub2-reboot <index>     # next boot only
+```
+
+The bus is the subtle one. Steam gates its login UI on creating a
+NetworkManager client, which lives on the D-Bus *system* bus, and muvm's guest
+has a session bus but no system bus. So Steam sits on "Waiting for network..."
+forever while the network is fine — its own connectivity tests pass over v4 and
+v6. `libnm` only needs a bus it can reach, not NetworkManager on it, so
+`steam-asahi` starts one inside the guest and points `DBUS_SYSTEM_BUS_ADDRESS`
+at it. Running the real NetworkManager there does not work: no udev, so eth0
+stays `unmanaged`.
+
+The wrapper is `/usr/local/bin/steam-asahi`, and the menu entry is a user-level
+`steam.desktop` that overrides the packaged one. `/usr/bin/steam` is left alone,
+so `dnf update steam` cannot clobber any of this and deleting the one desktop
+file puts the stock launcher back.
+
+What the wrapper cannot fix is the UI scale. `xwayland.force_zero_scaling` hands
+XWayland clients the raw panel and expects each toolkit to scale itself, and
+Steam is neither Qt nor GTK. Valve removed both `STEAM_FORCE_DESKTOPUI_SCALING`
+and `-forcedesktopscaling` when they added the Accessibility tab, so it is now a
+per-account setting: **Settings → Accessibility → UI scaling**.
+
+[muvm240]: https://github.com/AsahiLinux/muvm/issues/240
 
 ### hyprland sits next to GNOME
 
