@@ -68,10 +68,18 @@
     // so three columns is three digits' worth of room whatever fills them.
     //
     // Left click picks the output, right click mutes, scroll moves the volume.
+    //
+    // The bluetooth mark on the two format-bluetooth lines is spaced off the
+    // icon before it, where stock butts the two together. Ink is not bound by
+    // the cell it advances: in a monospace face every glyph steps one column,
+    // but the Font Awesome headphones draw about a column and a half, so with
+    // nothing between them the bluetooth rune's stem landed inside the right
+    // earcup and the pair read as one broken glyph. A space is a whole column
+    // here, which is more than the overhang needs.
     "pulseaudio": {
         "format": "{volume:>3}% {icon} {format_source}",
-        "format-bluetooth": "{volume:>3}% {icon} {format_source}",
-        "format-bluetooth-muted": " {icon} {format_source}",
+        "format-bluetooth": "{volume:>3}% {icon}  {format_source}",
+        "format-bluetooth-muted": " {icon}  {format_source}",
         "format-muted": " {format_source}",
         "format-source": "{volume:>3}% ",
         "format-source-muted": "",
