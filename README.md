@@ -32,6 +32,7 @@ From there `./run.sh` should get everything else back.
 | Role | What it does |
 |---|---|
 | `base` | The packages actually installed by hand, `~/src` |
+| `codecs` | RPM Fusion free + nonfree, swaps `ffmpeg-free` for the full `ffmpeg` |
 | `shell` | zsh + login shell, `.zshrc` / `.zshenv`, atuin and starship, with their configs |
 | `rust` | rustup, the default toolchain, `rust-src`, `bindgen-cli` |
 | `fonts` | The families in `fonts_enabled` into `~/.local/share/fonts` (knows DM Mono, JetBrains Mono, SF Mono, Tabular) |
@@ -70,6 +71,53 @@ so in a jj repo the built-in `git_*` ones show the stale underlying ref or
 nothing at all. It is a single binary starship execs per prompt, and it covers
 git as well, so `git_branch`, `git_status` and `git_commit` get disabled
 alongside it.
+
+### codecs is about decode speed, not formats
+
+Easy to mistake for the usual "enable RPM Fusion for restricted formats" advice.
+It is not that. MP4 plays out of the box — `qtdemux` is in
+`gstreamer1-plugins-good`, and H.264 decodes through Cisco's `libopenh264`,
+which the `fedora-cisco-openh264` repo enables by default.
+
+The problem is how *fast* it decodes. `libopenh264` is single-threaded, and this
+laptop has no hardware video decode at all — the M-series decode block has no
+Linux driver — so a 4K file is one core doing every frame. Measured on a
+3840x2160 41 Mbit/s H.264 High master:
+
+```
+frame=720  speed=0.944x
+bench: utime=31.582s  stime=0.127s  rtime=31.786s
+```
+
+23 fps against the 24 the file needs, and `utime` ≈ `rtime`: one core of eight.
+Just under realtime is the worst place to be — it stutters and drifts instead of
+failing honestly. Firefox and VLC both decode through system libavcodec, so both
+did it identically.
+
+RPM Fusion's `ffmpeg` restores libavcodec's own H.264 decoder, which is NEON
+tuned and frame-threaded. The same file afterwards:
+
+```
+frame=720  fps=160  speed=6.67x
+bench: utime=27.537s  stime=0.168s  rtime=4.498s
+```
+
+7× the wall-clock rate and 160 fps against the 24 needed — margin, not a fix
+that only just holds. `utime` *fell* too: the decode is cheaper per frame as
+well as spread across roughly six cores instead of one.
+
+One thing the swap does **not** fix is gstreamer. Fedora builds
+`gstreamer1-plugin-libav` with the encumbered decoders blacklisted at compile
+time, so `avdec_h264` and `avdec_h265` stay missing whichever libavcodec is
+underneath — gstreamer keeps using the slow `openh264dec` and has no HEVC
+decoder at all. Nothing here plays video through gstreamer, so it is left
+alone; `gstreamer1-plugins-bad-freeworld` is the package to add if that changes.
+
+Re-run the benchmark after a rebuild if playback ever regresses:
+
+```sh
+ffmpeg -benchmark -i FILE -t 30 -an -sn -f null -
+```
 
 ### fairydust needs rust
 

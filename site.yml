@@ -7,6 +7,11 @@
     - role: base
       tags: [base]
 
+    # After base, which is where vlc comes from: this is the role that makes it
+    # able to play a 4K H.264 file rather than stutter through one.
+    - role: codecs
+      tags: [codecs]
+
     - role: shell
       tags: [shell]
 

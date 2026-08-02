@@ -1,0 +1,71 @@
+---
+# Fedora ships ffmpeg-free: ffmpeg with the patent-encumbered decoders compiled
+# out. H.264 still decodes, because the fedora-cisco-openh264 repo is enabled by
+# default and libavcodec falls through to Cisco's libopenh264 — so this looks
+# like it works until the file gets big. That decoder is single-threaded and
+# barely vectorised, and this machine has no hardware video decode to fall back
+# on: the M-series decode block has no Linux driver, so every frame is CPU work.
+#
+# Measured here on a 3840x2160 41 Mbit/s H.264 High master, before the swap:
+#
+#   frame=720  speed=0.944x
+#   bench: utime=31.582s  stime=0.127s  rtime=31.786s
+#
+# 23 fps against the 24 the file needs — stutter and audio drift rather than
+# outright failure — and utime == rtime, meaning one core of the eight. Firefox
+# and VLC both decode through system libavcodec, which is why both stuttered on
+# the same file and neither was the culprit.
+#
+# The swap below puts libavcodec's own H.264 decoder back: NEON-optimised and
+# frame-threaded across cores. It also restores HEVC, which openh264 does not
+# claim at all. The same file after:
+#
+#   frame=720  fps=160  speed=6.67x
+#   bench: utime=27.537s  stime=0.168s  rtime=4.498s
+#
+# 7x the wall-clock rate, and 160 fps against 24 is margin rather than a fix
+# that only just holds. Note utime *fell* — the decode is cheaper per frame as
+# well as spread over roughly six cores instead of pinned to one.
+#
+# Note this role is *not* about container support. MP4 demuxing was never
+# missing: qtdemux ships in gstreamer1-plugins-good, which Fedora installs.
+
+# The signing key lives inside the release package, so there is nothing to
+# import ahead of it the way the tailscale role does — the first install is
+# necessarily unverified and HTTPS to mirrors.rpmfusion.org is the whole of the
+# trust here. It buys the keys into /etc/pki/rpm-gpg, and every package fetched
+# from these repos afterwards is checked against them normally. Keep the
+# disabled check on this task alone.
+- name: Install the RPM Fusion release packages
+  become: true
+  ansible.builtin.dnf5:
+    name: "{{ rpmfusion_release_packages }}"
+    state: present
+    disable_gpg_check: true
+
+# `dnf swap ffmpeg-free ffmpeg` in playbook form. The two provide the same
+# libraries and so conflict; allowerasing is what lets the resolver drop
+# ffmpeg-free rather than fail. Idempotent despite the flag — once ffmpeg is
+# installed this is a no-op and nothing is erased on later runs.
+#
+# Only libavcodec needs replacing. Firefox and VLC both decode straight through
+# the system libavcodec rather than through gstreamer, so replacing it is the
+# whole fix for the two things that were stuttering.
+#
+# Gstreamer specifically does *not* come along for the ride, which is worth
+# knowing before chasing it: Fedora builds gstreamer1-plugin-libav with the
+# encumbered decoders blacklisted at compile time, so avdec_h264 and avdec_h265
+# stay missing whichever libavcodec sits underneath. After the swap it exposes
+# 187 avdec_* elements — h261, h263, mpeg2video — and neither of those two.
+# Gstreamer keeps decoding H.264 through openh264dec, single-threaded as ever,
+# and still has no HEVC decoder at all.
+#
+# Nothing here plays video through gstreamer, so that is left alone. If it ever
+# matters, RPM Fusion's gstreamer1-plugins-bad-freeworld carries libgstde265.so
+# and is the package that fixes the HEVC half.
+- name: Swap ffmpeg-free for the full ffmpeg
+  become: true
+  ansible.builtin.dnf5:
+    name: "{{ codecs_packages }}"
+    state: present
+    allowerasing: true

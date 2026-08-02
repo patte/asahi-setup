@@ -13,6 +13,23 @@ base_packages:
   - yubikey-manager
   - vlc
 
+# --- codecs -----------------------------------------------------------------
+# RPM Fusion, for the decoders Fedora compiles out. See the role for the
+# measurement that made this necessary — vlc above is what it is for.
+#
+# Installed by URL because these two are not in any Fedora repo, so there is no
+# name for dnf to resolve. Versioned by release: mirrors.rpmfusion.org serves
+# the current build for whichever Fedora this is, and had fedora-44 aarch64 the
+# day it was needed.
+rpmfusion_release_packages:
+  - "https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-{{ ansible_facts['distribution_major_version'] }}.noarch.rpm"
+  - "https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-{{ ansible_facts['distribution_major_version'] }}.noarch.rpm"
+
+# What gets pulled from those repos. `ffmpeg` here means RPM Fusion's build,
+# which replaces Fedora's ffmpeg-free rather than sitting beside it.
+codecs_packages:
+  - ffmpeg
+
 # --- shell ------------------------------------------------------------------
 # zsh itself is installed by the shell role, since that role owns the config.
 login_shell: /usr/bin/zsh
