@@ -1,0 +1,112 @@
+---
+# Fedora Asahi Remix expects mesa and virglrenderer to come from the @asahi
+# COPR rather than from Fedora, and asahi-repos says so in its own files: it
+# ships a vendor-change guard for exactly those two source packages and nothing
+# else, next to a config that enforces them globally.
+#
+#   /usr/share/dnf5/vendors.d/asahicopr-mesa.conf
+#   /usr/share/dnf5/vendors.d/asahicopr-virglrenderer.conf
+#   /usr/share/dnf5/libdnf.conf.d/30-asahi-sticky-vendors.conf  allow_vendor_change=False
+#
+# On this box both arrived from Fedora anyway, and the priority the COPR ships
+# with is why. Lower wins, Fedora's default is 99, and the mesa COPR is the one
+# Asahi repo that sits above it:
+#
+#   fedora-asahi-remix-hotfixes.repo   priority=1
+#   group_asahi-kernel.repo            priority=5
+#   group_asahi-steam.repo             priority=5
+#   group_asahi-mesa.repo              priority=200   <- loses to Fedora
+#
+# At 200 the COPR never wins on priority, so the winner is decided on version
+# alone — and the COPR trails, mesa 26.0.6 against Fedora's 26.1.5 and
+# virglrenderer 1.2.0 against 1.3.0. The sticky-vendor guard does not save it,
+# because a guard needs an outgoing vendor to hold on to: it blocks a migration
+# from the COPR to Fedora and has nothing to say about a *first* install. So a
+# weak dependency is enough to do it — hyprland Recommends mesa-dri-drivers, and
+# the hyprland COPR sets no priority either. Once Fedora's build is on disk,
+# allow_vendor_change=False cements it and no amount of `dnf update` moves it
+# back.
+#
+# What it costs is muvm's GPU passthrough, which is subtle enough to be worth
+# spelling out. Desktop GL is unaffected — stock mesa carries the upstream asahi
+# gallium driver and glxinfo reports the M2 correctly — so the machine looks
+# healthy. But the Asahi DRM native context is the tested mesa+virglrenderer
+# pairing, and with Fedora's builds any GPU client inside the microVM takes the
+# whole VM down, native aarch64 just as surely as an emulated x86 one:
+#
+#   ERROR krun_vmm::linux::vstate] Failure during vcpu run: Bad address (os error 14)
+#
+# raised immediately after libkrun maps a 16 KiB GPU blob. Steam is the visible
+# casualty and a misleading one, because it dies before showing a window of its
+# own: the first thing it opens is a zenity progress dialog from the Steam
+# runtime's setup.sh, and the microVM dies under it. `muvm --gpu-mode software`
+# runs it unaccelerated, which is the way to confirm the GPU path is the fault.
+#
+# This role runs first in site.yml. Not for correctness — the priority below
+# holds whenever it is applied — but so a fresh box never has a window in which
+# some other role's weak dependency installs Fedora's mesa first.
+
+# Priority beats version outright, so at 5 the COPR supplies these whatever
+# Fedora's version is, including on a fresh install where the vendor guard has
+# nothing to hold on to. Packages the COPR does not build are untouched:
+# priority only chooses between repos that both carry the package, which is why
+# mesa-libGLU keeps coming from Fedora — different source package, not in the
+# COPR, and nothing to do with the native context.
+#
+# The file belongs to asahi-repos but is %config(noreplace), so this edit
+# survives an update of that package and leaves a .rpmnew beside it.
+- name: Give the Asahi mesa COPR priority over Fedora
+  become: true
+  community.general.ini_file:
+    path: /etc/yum.repos.d/group_asahi-mesa.repo
+    section: "{{ mesa_copr_repoid }}"
+    option: priority
+    value: "{{ mesa_copr_priority }}"
+    no_extra_spaces: true
+    mode: "0644"
+
+# `rpm -qa` with names filters rather than looks up, so packages that are not
+# installed drop out silently instead of failing the task. virglrenderer is the
+# one that genuinely may be absent — it arrives with libkrun.
+- name: Find out which vendor the graphics packages came from
+  ansible.builtin.command:
+    argv: "{{ ['rpm', '-qa', '--qf', '%{NAME} %{VENDOR}\n'] + mesa_asahi_packages }}"
+  register: mesa_vendors
+  changed_when: false
+
+- name: Collect the ones Fedora supplied
+  ansible.builtin.set_fact:
+    mesa_strays: >-
+      {{ mesa_vendors.stdout_lines
+         | select('search', ' Fedora Project$')
+         | map('regex_replace', ' .*$', '')
+         | list }}
+
+# distro-sync rather than downgrade: it moves each package to whatever the
+# now-higher-priority COPR offers, which is the right answer in both directions
+# once the COPR catches up with Fedora again.
+#
+# allow_vendor_change is set for this transaction only. It has to be — the
+# sticky-vendor config would otherwise refuse the very migration this role
+# exists to perform. Afterwards the vendor is @asahi and the guards in
+# vendors.d hold it there on their own, so nothing needs pinning.
+#
+# If the resolver refuses, that is worth reading rather than forcing: it means
+# something on the system now needs a mesa newer than the COPR builds, and the
+# COPR has fallen far enough behind that this trade is no longer free.
+- name: Move mesa and virglrenderer onto the COPR builds
+  become: true
+  ansible.builtin.command:
+    argv: "{{ ['dnf', '-y', 'distro-sync', '--setopt=allow_vendor_change=True'] + mesa_strays }}"
+  when: mesa_strays | length > 0
+  register: mesa_sync
+  changed_when: mesa_sync.rc == 0
+
+# The running compositor has the old libraries mapped, and muvm will keep
+# crashing until it does not. Nothing here can safely do it for you.
+- name: Note that a reboot is required
+  ansible.builtin.debug:
+    msg: >-
+      Moved {{ mesa_strays | join(', ') }} onto the @asahi COPR.
+      Reboot, then check with `muvm -t -- glxinfo -B`.
+  when: mesa_sync is changed

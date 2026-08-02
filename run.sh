@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-ROLES=(base codecs shell rust fonts ghostty claude vscode tailscale keyswaps titdb hyprland fairydust)
+ROLES=(mesa base codecs shell rust fonts ghostty claude vscode tailscale keyswaps titdb hyprland fairydust)
 
 usage() {
     cat <<EOF
