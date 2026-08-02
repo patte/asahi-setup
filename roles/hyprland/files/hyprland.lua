@@ -72,6 +72,26 @@ hl.env("HYPRCURSOR_SIZE", "24")
 -- blurry text. "auto" makes them native Wayland clients.
 hl.env("ELECTRON_OZONE_PLATFORM_HINT", "auto")
 
+-- VLC cannot be moved the same way and is the last XWayland client left on the
+-- box. VLC 3 takes X11 whatever QT_QPA_PLATFORM says — asked for wayland with
+-- no fallback behind it, it still comes up as an XWayland window — so the fix
+-- is not to get it onto Wayland but to stop the compositor enlarging it.
+--
+-- The panel is 2880x1800 driven at scale 1.5. Left alone an XWayland window
+-- draws at 1x and Hyprland stretches the result, which is pixels blown up
+-- after they were drawn, and why the menus looked pixelated while every native
+-- window on the same screen was sharp. force_zero_scaling under LOOK AND FEEL
+-- turns the stretching off; this makes Qt lay its interface out 1.5x larger to
+-- begin with, so the text is rasterised at the size it is displayed at. One
+-- without the other is no good: the stretch back, or an interface at a third
+-- of the size it should be.
+--
+-- Both are global, and Qt is the reason the pair works: XWayland now hands
+-- every client raw pixels, and Qt is the only toolkit here that still has one.
+-- A native Wayland Qt app would be the thing to watch, since it would take the
+-- compositor's 1.5 and this 1.5 both and come out half again too big.
+hl.env("QT_SCALE_FACTOR", "1.5")
+
 -----------------------
 ---- LOOK AND FEEL ----
 -----------------------
@@ -98,9 +118,21 @@ hl.config({
         -- background, which is the intent. The splash is its own switch: the
         -- logo and the hyprBot one-liner under it are drawn separately, so
         -- silencing one leaves the other talking.
+        --
+        -- Neither reaches the splash line hyprpaper draws over the wallpaper:
+        -- it asks the compositor for the same string and renders its own copy,
+        -- which narchy turns off with `splash = false` in the file it owns.
         force_default_wallpaper = 0,
         disable_hyprland_logo   = true,
         disable_splash_rendering = true,
+    },
+
+    -- Hand XWayland clients the raw panel rather than a 1x buffer stretched to
+    -- 1.5, and let the toolkit scale itself — QT_SCALE_FACTOR above is the
+    -- other half. Global, so any XWayland client that is not told to scale
+    -- comes out at a third under size; VLC is the only one on the box.
+    xwayland = {
+        force_zero_scaling = true,
     },
 })
 
