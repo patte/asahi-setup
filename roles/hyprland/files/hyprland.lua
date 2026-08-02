@@ -90,9 +90,12 @@ hl.config({
 
     misc = {
         -- No mascot wallpaper. Until the theming pass this leaves a plain
-        -- background, which is the intent.
+        -- background, which is the intent. The splash is its own switch: the
+        -- logo and the hyprBot one-liner under it are drawn separately, so
+        -- silencing one leaves the other talking.
         force_default_wallpaper = 0,
         disable_hyprland_logo   = true,
+        disable_splash_rendering = true,
     },
 })
 
