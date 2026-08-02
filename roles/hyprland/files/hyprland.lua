@@ -54,6 +54,11 @@ hl.on("hyprland.start", function()
 
     hl.exec_cmd("waybar")
     hl.exec_cmd("mako")
+
+    -- Nothing follows this to put the wallpaper back: hyprpaper reads its own
+    -- config at startup, and narchy owns that config through a source line, so
+    -- the picture for the current theme is up before anything else asks.
+    hl.exec_cmd("hyprpaper")
 end)
 
 -------------------------------
