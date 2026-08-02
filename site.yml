@@ -4,14 +4,6 @@
   gather_facts: true
 
   roles:
-    # First, and that is the whole point of where it sits: it decides which repo
-    # supplies mesa, and every later role that installs anything can pull mesa
-    # in as a weak dependency. Getting Fedora's build is a one-way door — the
-    # sticky-vendor config will not migrate it back — so the priority has to be
-    # right before anything else runs dnf.
-    - role: mesa
-      tags: [mesa]
-
     - role: base
       tags: [base]
 

@@ -31,7 +31,6 @@ From there `./run.sh` should get everything else back.
 
 | Role | What it does |
 |---|---|
-| `mesa` | Keeps mesa and virglrenderer on the @asahi COPR, where muvm needs them. Runs first |
 | `base` | The packages actually installed by hand, `~/src` |
 | `codecs` | RPM Fusion free + nonfree, swaps `ffmpeg-free` for the full `ffmpeg` |
 | `shell` | zsh + login shell, `.zshrc` / `.zshenv`, atuin and starship, with their configs |
@@ -72,71 +71,6 @@ so in a jj repo the built-in `git_*` ones show the stale underlying ref or
 nothing at all. It is a single binary starship execs per prompt, and it covers
 git as well, so `git_branch`, `git_status` and `git_commit` get disabled
 alongside it.
-
-### mesa has to come from the COPR, and does not by default
-
-Fedora Asahi Remix expects mesa and virglrenderer to come from the `@asahi`
-COPR. It says so in its own packaging: `asahi-repos-dnf5-vendorchange-config`
-ships a vendor-change guard for exactly those two source packages and nothing
-else, and `30-asahi-sticky-vendors.conf` sets `allow_vendor_change=False` to
-enforce them.
-
-They still ended up as Fedora builds here, because of the priority the COPR
-ships with — lower wins, Fedora's default is 99:
-
-```
-fedora-asahi-remix-hotfixes.repo   priority=1
-group_asahi-kernel.repo            priority=5
-group_asahi-steam.repo             priority=5
-group_asahi-mesa.repo              priority=200   <- loses to Fedora
-```
-
-At 200 the COPR never wins on priority, so it wins only when its version is
-higher — and it trails, mesa 26.0.6 against 26.1.5 and virglrenderer 1.2.0
-against 1.3.0. The sticky-vendor guard cannot cover for that, because a guard
-needs an outgoing vendor to hold on to: it blocks a migration *from* the COPR
-and has nothing to say about a first install. A weak dependency is enough to do
-it — hyprland `Recommends: mesa-dri-drivers`, and that COPR sets no priority
-either. Once Fedora's build is on disk, `allow_vendor_change=False` cements it
-and no `dnf update` ever moves it back.
-
-The role sets the priority to 5 and, for a box already in the wrong state,
-distro-syncs the strays across with `allow_vendor_change=True` for that one
-transaction. After that the vendor is `@asahi` and the stock guards hold it
-there, so there is nothing to pin.
-
-**What breaks without it** is only muvm's GPU passthrough, which is why this is
-easy to miss. Desktop GL is fine either way — stock mesa has the upstream asahi
-gallium driver, and `glxinfo -B` reports the M2 correctly — but the Asahi DRM
-native context is the tested mesa+virglrenderer pairing. With Fedora's builds,
-any GPU client inside the microVM kills the entire VM:
-
-```
-ERROR krun_vmm::linux::vstate] Failure during vcpu run: Bad address (os error 14)
-```
-
-raised right after libkrun maps a 16 KiB GPU blob. Native aarch64 clients die
-exactly like emulated x86 ones, so it is not a FEX problem.
-
-Steam is the visible casualty and a misleading one. It never draws a window of
-its own: the first thing it opens is a zenity progress dialog from the Steam
-runtime's `setup.sh`, and the microVM dies under it, leaving only
-
-```
-setup.sh[311]: Updating Steam runtime environment...
-Steam quit
-```
-
-To check the state, and to tell a GPU fault from anything else:
-
-```sh
-dnf repoquery --installed --qf '%{name} %{from_repo} %{vendor}\n' 'mesa*' virglrenderer
-muvm -t -- glxinfo -B          # must print the M2, not kill the VM
-muvm --gpu-mode software -t -- glxinfo -B   # works even when the above does not
-```
-
-Reboot after the role changes anything — the running compositor still has the
-old libraries mapped.
 
 ### codecs is about decode speed, not formats
 

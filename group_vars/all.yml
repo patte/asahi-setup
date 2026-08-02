@@ -4,27 +4,6 @@
 target_user: patte
 src_dir: "/home/{{ target_user }}/src"
 
-# --- mesa -------------------------------------------------------------------
-# The @asahi mesa COPR ships at priority=200, which loses to Fedora outright.
-# 5 matches the other Asahi repos and is what makes it win. See the role for
-# what the stock arrangement breaks.
-mesa_copr_repoid: "copr:copr.fedorainfracloud.org:group_asahi:mesa"
-mesa_copr_priority: 5
-
-# The packages the COPR builds and Fedora also ships, so the ones a priority
-# tie-break actually decides. Deliberately not a `mesa*` glob: mesa-libGLU is a
-# separate source package that only Fedora has, and sweeping it in here would
-# put a name in the distro-sync list that no COPR build can satisfy.
-mesa_asahi_packages:
-  - mesa-dri-drivers
-  - mesa-filesystem
-  - mesa-libEGL
-  - mesa-libGL
-  - mesa-libgbm
-  - mesa-libOpenCL
-  - mesa-vulkan-drivers
-  - virglrenderer
-
 # --- base -------------------------------------------------------------------
 base_packages:
   - dnf-plugins-core
