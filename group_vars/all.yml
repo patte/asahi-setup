@@ -107,10 +107,16 @@ hyprland_copr_includepkgs:
   - xdg-desktop-portal-hyprland
 
 # From the COPR: things Fedora has no package for.
+#
+# hyprpaper is the wallpaper daemon. Nothing depends on it, so it has to be
+# named: hyprland.lua execs it at startup and narchy renders its config, and
+# without the binary the first is a silent no-op and the second is skipped —
+# narchy detects apps with `command -v`.
 hyprland_copr_packages:
   - hyprland
   - xdg-desktop-portal-hyprland
   - hyprpolkitagent
+  - hyprpaper
 
 # From Fedora: everything a bare compositor does not come with. Stock configs
 # except the bar's, which cannot be — see the waybar tasks in the role.
