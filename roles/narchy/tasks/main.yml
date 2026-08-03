@@ -1,0 +1,128 @@
+---
+# narchy is bash and sed, so there is nothing to build and no runtime to install.
+# jq is the one thing it degrades without: the vscode app merges its three colour
+# keys into settings.json with it, and warns rather than fails when it is absent.
+# git is not for the clone below — ansible does that — but for
+# narchy-backgrounds, which shells out to it at runtime.
+- name: Install narchy's runtime dependencies
+  become: true
+  ansible.builtin.dnf5:
+    name: "{{ narchy_packages }}"
+    state: present
+
+- name: Clone narchy at {{ narchy_version }}
+  ansible.builtin.git:
+    repo: "{{ narchy_repo }}"
+    dest: "{{ narchy_dir }}"
+    version: "{{ narchy_version }}"
+    depth: 1
+
+- name: Ensure ~/.local/bin exists
+  ansible.builtin.file:
+    path: "{{ ansible_facts['user_dir'] }}/.local/bin"
+    state: directory
+    mode: "0755"
+
+# Already on PATH via .zshrc (shell role). All three, though the tasks below
+# call them by absolute path: this is for using them by hand. narchy-backgrounds
+# is the only one this playbook never runs.
+- name: Link the narchy commands into ~/.local/bin
+  ansible.builtin.file:
+    src: "{{ narchy_dir }}/bin/{{ item }}"
+    dest: "{{ ansible_facts['user_dir'] }}/.local/bin/{{ item }}"
+    state: link
+  loop:
+    - narchy
+    - narchy-backgrounds
+    - narchy-firefox-live
+
+# By absolute path throughout, not by name: ansible does not read .zshrc, so
+# ~/.local/bin is not on the PATH these tasks run with. narchy resolves its own
+# root from the symlink either way.
+- name: Check which theme narchy has applied, if any
+  ansible.builtin.command: "{{ narchy_bin }} current"
+  register: narchy_current
+  changed_when: false
+  failed_when: false
+
+# Before `link`, and not only for tidiness: link refuses outright until a theme
+# has been rendered — hyprpaper's because sourcing a file that is not there is
+# the one config error it will not start on, and the others because there would
+# be nothing behind the include lines they write.
+- name: Apply the {{ narchy_theme }} palette
+  when: narchy_theme != (narchy_current.stdout | trim)
+  ansible.builtin.command: "{{ narchy_bin }} set {{ narchy_theme }}"
+  changed_when: true
+
+# Before the loader, and before `link` with it: a profile that was linked
+# earlier keeps winning over the loader, because a sheet imported by
+# userChrome.css is loaded first. A no-op once there is nothing linked, which is
+# every run after the first.
+- name: Take firefox back from `narchy link`, for the loader
+  when: narchy_firefox_live
+  ansible.builtin.command: "{{ narchy_bin }} unlink firefox"
+  changed_when: false
+
+# rc is the test for firefox being installed at all: status exits non-zero when
+# it cannot find one, and so would install.
+- name: Check whether the firefox live loader is installed and current
+  ansible.builtin.command: "{{ narchy_dir }}/bin/narchy-firefox-live status"
+  register: narchy_live_status
+  changed_when: false
+  failed_when: false
+
+# The one thing `narchy link firefox` cannot do: recolour a Firefox that is
+# already open, rather than the next one you start. It costs a loader in
+# Firefox's own install directory, which is why narchy keeps it out of `link`
+# and out of the tool — and why this is the only task here that needs root.
+#
+# A Firefox update replaces that directory and takes the loader with it, which
+# `status` then reports as not installed, so a later `./run.sh narchy` puts it
+# back. That is the whole reason to guard on status rather than reinstall
+# blindly: the run after an update is the one that has something to do.
+#
+# become rather than the sudo the script would call itself — it writes directly
+# when it is already root.
+- name: Install the firefox live loader
+  when:
+    - narchy_firefox_live
+    - narchy_live_status.rc == 0
+    - narchy_live_status.stdout is not search('(?m)^loader\s+installed$')
+  become: true
+  ansible.builtin.command: "{{ narchy_dir }}/bin/narchy-firefox-live install"
+  changed_when: true
+
+# What makes the generated files matter: one line per app, in each app's own
+# config, pointing at ~/.local/state/narchy/current/. Safe to run beside this
+# playbook because neither side rewrites the other's file — see the waybar
+# stylesheet in the hyprland role, which is seeded once and imported into from
+# both directions.
+#
+# Idempotent, but silent about it: every app prepends or appends its line only
+# when it is not already there, and prints `linked <app>` regardless. There is
+# nothing in the output to derive a change from, hence changed_when: false. The
+# first run is the one that does anything, and the `set` above reports that.
+#
+# firefox is not in it, and is not excluded here either: with the loader
+# installed above, narchy refuses to link firefox over it. So this stays a bare
+# `narchy link` — every app it detects, minus the one that has a better
+# arrangement — rather than a list of ten that has to be kept in step with
+# whatever narchy learns to theme next.
+- name: Point the app configs at narchy's output
+  ansible.builtin.command: "{{ narchy_bin }} link {{ narchy_link_apps | join(' ') }}"
+  changed_when: false
+
+# Off unless narchy_backgrounds_themes names something. narchy ships no
+# wallpapers on purpose — they are someone else's photographs and artwork — and
+# this fetches them from Omarchy over the network, which is not a thing a
+# routine run should do by itself.
+#
+# Nothing already in ~/.config/narchy/backgrounds is ever overwritten, so the
+# guard is only about not re-cloning. Note a theme with no wallpapers upstream
+# never gets a directory, so it is re-tried on every run; aetheria is one of
+# those, being narchy's own rather than Omarchy's.
+- name: Fetch wallpapers for {{ item }}
+  ansible.builtin.command:
+    cmd: "{{ narchy_dir }}/bin/narchy-backgrounds {{ item }}"
+    creates: "{{ ansible_facts['user_dir'] }}/.config/narchy/backgrounds/{{ item }}"
+  loop: "{{ narchy_backgrounds_themes }}"

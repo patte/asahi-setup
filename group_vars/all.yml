@@ -228,6 +228,49 @@ ghostty_font_codepoint_map:
 keyd_repo: https://github.com/rvaiya/keyd.git
 keyd_version: v2.6.0
 
+# --- narchy -----------------------------------------------------------------
+# The theme engine: one palette across waybar, wofi, mako, ghostty, hyprland,
+# btop, neovim, vscode, vlc and firefox.
+#
+# Not in src_dir, unlike keyd and titdb: nothing here is built, and the install
+# narchy's own README describes is a clone under ~/.local/share with the
+# commands symlinked onto PATH. Keeping to it means this is an installed program
+# rather than a checkout that happens to be run from where it was cloned.
+narchy_repo: https://github.com/patte/narchy.git
+narchy_dir: "/home/{{ target_user }}/.local/share/narchy"
+narchy_bin: "{{ narchy_dir }}/bin/narchy"
+
+# A branch rather than a tag or a commit: narchy has no releases, and it is ours,
+# so a re-run should pick up whatever was last pushed. Set it to a sha to pin.
+narchy_version: main
+
+# jq is soft — vscode's colour merge needs it and warns without it. git is for
+# narchy-backgrounds. Everything else it uses (bash, sed, coreutils, flock) is
+# already on any Fedora.
+narchy_packages:
+  - git
+  - jq
+
+narchy_theme: aetheria
+
+# Empty means every app narchy detects, which here is all of them bar firefox:
+# detection is `command -v`, and every program it knows about is installed by
+# base, ghostty, vscode or hyprland. firefox drops out on its own because the
+# live loader below is installed first, and narchy will not link over one. Name
+# apps to narrow it — note that naming one bypasses detection, so it would be
+# linked whether or not it is installed.
+narchy_link_apps: []
+
+# The privileged half of firefox theming: a loader in Firefox's install
+# directory that recolours windows that are already open, where linking a
+# profile only reaches the next start. Mutually exclusive with linking firefox,
+# and it is the loader that wins here. Set false to link the profiles instead.
+narchy_firefox_live: true
+
+# Wallpapers, fetched from Omarchy rather than shipped. Empty means none: see
+# the task for why this is opt-in. aetheria has none upstream.
+narchy_backgrounds_themes: []
+
 # --- titdb ------------------------------------------------------------------
 titdb_repo: https://github.com/tascvh/trackpad-is-too-damn-big.git
 titdb_commit: 26fcd89a8e9620be11783c34aedeff12968ae600

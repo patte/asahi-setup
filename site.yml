@@ -54,6 +54,14 @@
     - role: hyprland
       tags: [hyprland]
 
+    # Last of the real roles, because `narchy link` writes a line into the config
+    # of every app it finds and those configs have to exist first — waybar's
+    # stylesheet and hyprpaper come from hyprland above, ghostty and vscode from
+    # their own roles, btop and neovim and vlc from base. It also links only what
+    # is installed, so a role that has not run yet is an app silently skipped.
+    - role: narchy
+      tags: [narchy]
+
     # Tagged `never`: a full kernel compile is not something a routine run
     # should ever trigger. Only `./run.sh fairydust` reaches it.
     - role: fairydust

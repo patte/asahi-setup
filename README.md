@@ -43,7 +43,8 @@ From there `./run.sh` should get everything else back.
 | `keyswaps` | Builds keyd from source into `/usr/local`, installs the mac-style keymap, enables it |
 | `titdb` | Builds trackpad-is-too-damn-big, installs binary + unit, enables it |
 | `steam` | Steam, plus a wrapper that gives the microVM the D-Bus bus Steam's login needs, and keeps the kernel it can run on |
-| `hyprland` | sdegler COPR (scoped), the hypr stack, waybar/wofi/mako, `hyprland.lua` |
+| `hyprland` | sdegler COPR (scoped), the hypr stack, waybar/wofi/mako/hyprpaper, `hyprland.lua` |
+| `narchy` | Clones the theme engine, links it into `~/.local/bin`, sets a palette and points the app configs at it |
 | `fairydust` | Builds and installs the patched Asahi kernel. Tagged `never`, needs `rust` |
 
 ### The prompt
@@ -204,6 +205,70 @@ themselves need attention.
 Most of that second used to be fact gathering, for the single fact those tasks
 read; see fact caching below.
 
+### narchy is the colour, and runs last
+
+[narchy](https://github.com/patte/narchy) is where every colour in the desktop
+comes from. This playbook installs the programs and their layout; narchy paints
+them, all from one palette, and the two are kept apart on purpose — nothing in
+`roles/` sets a colour, and narchy sets nothing else.
+
+Cloned to `~/.local/share/narchy` with the three commands symlinked into
+`~/.local/bin`, which is the install narchy's own README describes — **not**
+into `~/src` like keyd and titdb, since nothing here is built and there is no
+reason to keep it beside things that are.
+
+`narchy_version: main` tracks the branch rather than pinning, since it is ours
+and a re-run should pick up the last push. Then `narchy set` renders the palette
+into `~/.local/state/narchy/current/`, and `narchy link` writes one include line
+into each app's own config pointing at it. That second step is what makes the
+first matter, and it is separate because narchy will not touch a config you have
+not offered it.
+
+Both sides of that arrangement have to hold, which is why the role is last in
+`site.yml`:
+
+- **narchy only ever writes inside its state directory**, except for vscode,
+  vlc and firefox, which have no include mechanism — those three it edits in
+  place, only once linked, and `narchy unlink` puts back what it found.
+- **This playbook never rewrites a file narchy has a line in.** The waybar
+  stylesheet is the one they share, and the hyprland role seeds it with
+  `force: false` and adds its import with `lineinfile` for exactly that reason.
+  Turning either into a plain `copy` would drop narchy's imports on every run.
+  The ghostty role sidesteps it entirely by owning `config.ghostty` and leaving
+  `config`, where narchy's line goes, alone.
+
+Ordering is the other half: `link` writes into configs that must already exist,
+and it skips any app it cannot find on PATH, so a role that has not run yet is
+an app that silently goes unthemed.
+
+Firefox is the exception to all of it, and gets the loader instead of a link.
+`narchy link firefox` writes into every profile and reaches Firefox at its next
+start; `narchy-firefox-live` puts a loader in Firefox's install directory —
+root, and the only privileged thing narchy does — and recolours the windows in
+front of you. The two are mutually exclusive, since a sheet imported by
+userChrome.css is loaded first and pins the palette Firefox opened with.
+
+The role installs the loader and then runs a bare `narchy link`, because narchy
+refuses to link firefox over an installed loader. So there is no app list to
+keep in step here: firefox drops out of `link` by itself, and stays out. Set
+`narchy_firefox_live: false` to have the profiles linked instead.
+
+Guarded on `narchy-firefox-live status`, which is the interesting part. A
+Firefox update replaces the install directory and takes the loader with it —
+upstream's own documented wart, a thing you are otherwise expected to notice and
+redo by hand. `status` reports it as gone, so the next `./run.sh` puts it back.
+
+One manual step is left, once: restart Firefox after the loader first goes in.
+Profiles are also made by the browser rather than the package, so `link` on a
+never-started Firefox has nothing to write into — which matters only if you turn
+the loader off.
+
+`narchy_theme` is a source of truth like any other file in here: the role
+compares it against `narchy current` and re-applies when they differ, so a
+palette picked by hand with `narchy set` or `narchy i` is reverted by the next
+`./run.sh`, quietly and by design. Keep one you like by putting it in
+`group_vars/all.yml`.
+
 ## Fact caching
 
 `ansible.cfg` turns on `smart` gathering against a jsonfile cache, so every
@@ -246,6 +311,12 @@ documentation, but the files this playbook installs are the ones in here.
   running a `-asahi-fairydust` kernel, so it will not pick up new upstream
   commits on its own. That is intentional — an unattended kernel rebuild is not
   something a config run should decide to do.
+- **Wallpapers.** `narchy-backgrounds` is linked into `~/.local/bin` but never
+  run: narchy ships none, and it fetches other people's photographs and artwork
+  from Omarchy over the network. Name themes in `narchy_backgrounds_themes` to
+  have the role pull them, or run it by hand. `aetheria` has none upstream.
+- **Restarting Firefox** after the live loader goes in. Once, and only the
+  first time; every `narchy set` after that lands in the open windows.
 
 ## Rebuild triggers
 
@@ -257,3 +328,6 @@ Source builds are guarded so re-runs are cheap. To force one:
   `~/src/trackpad-is-too-damn-big/build/titdb`
 - starship: bump `starship_version` and that is all — the task compares against
   `--version` rather than guarding on the file, so there is nothing to delete
+- narchy: nothing to force — `narchy_version: main` means `./run.sh narchy`
+  fetches the branch every time. Wallpapers are the exception: they are guarded
+  on `~/.config/narchy/backgrounds/<theme>/`, so delete that to re-fetch
