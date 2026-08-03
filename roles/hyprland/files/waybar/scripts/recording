@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# The recording indicator, behind custom/recording on the bar. Prints waybar's
+# json on stdout: a record mark and the elapsed time while wf-recorder is
+# running, and an empty text when it is not, which is what makes the module
+# disappear rather than sit there empty — waybar hides a label with no text.
+#
+# This exists because the obvious indicator cannot work. A notification when a
+# recording starts is drawn over the screen being recorded and ends up in the
+# clip; see the recorder binds in hyprland.lua. The bar is already on screen and
+# already in the recording either way, so it costs the video nothing.
+set -euo pipefail
+
+# The one glyph in this repo written as an escape rather than pasted in. Every
+# icon on this bar is a Font Awesome codepoint out of a private use area, which
+# means an invisible character in the source that no editor will show and nobody
+# can type — the config.jsonc header says as much about its own. In a shell
+# script there is a way out of that, so: U+F111, nf-fa-circle, the filled disc
+# every recorder in the world uses.
+mark=$'\uf111'
+
+# -n is the newest match, not all of them. Two recorders at once is not a state
+# these binds can reach — the first thing either of them does is signal any
+# recorder already running — but a stale one would otherwise make this print two
+# pids and the arithmetic below fail.
+pid=$(pgrep -nx wf-recorder || true)
+
+if [[ -z $pid ]]; then
+    printf '{"text":""}\n'
+    exit 0
+fi
+
+# etimes is elapsed seconds, which is the form that needs no parsing; ps's other
+# elapsed field is [[dd-]hh:]mm:ss and would have to be taken apart to be
+# formatted. Empty if the process exited between the pgrep above and here, hence
+# the default — a recording that ends mid-poll should read as gone, not as an
+# error on the bar.
+secs=$(ps -o etimes= -p "$pid" 2>/dev/null | tr -d ' ')
+secs=${secs:-0}
+
+# m:ss, and minutes are deliberately not wrapped into hours: a screen recording
+# that runs past an hour reads better as 74:03 than as 1:14:03, and the field
+# grows leftwards from the module's own edge, so nothing on the bar moves when
+# it gains a digit. That is also why this module is first in modules-right — see
+# the note there.
+printf '{"text":"%s %d:%02d","tooltip":"Recording — SUPER + SHIFT + R or SUPER + CTRL + R to stop","class":"recording"}\n' \
+    "$mark" $((secs / 60)) $((secs % 60))

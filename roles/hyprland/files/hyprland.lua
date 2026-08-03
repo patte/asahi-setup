@@ -491,9 +491,8 @@ hl.bind("SHIFT + Print", hl.dsp.exec_cmd(shotRegion))
 -- The region variant keeps slurp's geometry in a variable and bails if the drag
 -- was cancelled with Escape, for the same reason the screenshot above does: an
 -- empty -g is worse than no recording. It is `|| exit` here and not the `&&`
--- the screenshot uses, because there are four commands after this one and `&&`
--- would only ever guard the first of them — the notification would still fire
--- and the recorder would still start.
+-- the screenshot uses, because there are three commands after this one and `&&`
+-- would only ever guard the first of them — the recorder would still start.
 --
 -- Software encoding, hence ultrafast. There is no video encode engine available
 -- here — the asahi GPU node does no encode and Apple's encoder has no driver —
@@ -505,15 +504,24 @@ hl.bind("SHIFT + Print", hl.dsp.exec_cmd(shotRegion))
 -- (the sink monitor, i.e. what you are hearing) is not the default, so it would
 -- silently record the microphone instead. Add it by hand when a clip needs it.
 --
--- The notifications are not decoration. Nothing on screen says a recording is
--- running, so they are the only indicator there is. The second one is gated on
--- the file being non-empty rather than on wf-recorder's exit status, since what
--- it is really reporting is that there is something to play.
+-- Nothing is notified on start, deliberately. A notification announcing that a
+-- recording has begun is drawn over the screen that is about to be recorded,
+-- and mako holds it long enough to be in the first seconds of every clip — the
+-- one place an indicator must not appear is in the recording it is indicating.
+--
+-- The bar carries it instead: custom/recording in the waybar config, which is
+-- one row of pixels at the top of the screen rather than a panel over the
+-- middle of it, and which can say how long the clip has been running, something
+-- a notification fired once at the start cannot.
+--
+-- The finish notification stays. It fires after the recorder has exited, so it
+-- cannot land in the video, and it is gated on the file being non-empty rather
+-- than on wf-recorder's exit status, since what it is really reporting is that
+-- there is something to play.
 local function recorder(region)
     return "pkill -INT -x wf-recorder || { "
         .. (region and 'geom=$(slurp) || exit; ' or "")
         .. 'out="$HOME/Videos/recording-$(date +%Y%m%d-%H%M%S).mp4"; '
-        .. 'notify-send -a wf-recorder "Recording" "Same shortcut again to stop."; '
         .. "wf-recorder " .. (region and '-g "$geom" ' or "")
         .. '-c libx264 -p preset=ultrafast -p crf=25 -f "$out"; '
         .. '[ -s "$out" ] && notify-send -a wf-recorder "Recording saved" "$(basename "$out")"; }'

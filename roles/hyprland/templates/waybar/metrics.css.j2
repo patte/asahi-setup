@@ -35,14 +35,37 @@
  * given another 15px on the right of its own. Between the two, the gaps down
  * the right of the bar ran from 21px to 38px.
  *
- * So name the ten modules this bar actually has, rather than inheriting a list
- * written for a different one, and give them all the same. Waybar's own
+ * So name the eleven modules this bar actually has, rather than inheriting a
+ * list written for a different one, and give them all the same. Waybar's own
  * `spacing` adds 4px between widgets on top of this; it is even everywhere and
  * not what was wrong.
  */
-#pulseaudio, #bluetooth, #network, #power-profiles-daemon, #cpu, #memory,
-#temperature, #battery, #clock, #tray {
+#custom-recording, #pulseaudio, #bluetooth, #network, #power-profiles-daemon,
+#cpu, #memory, #temperature, #battery, #clock, #tray {
   padding: 0 10px;
+}
+
+/* The recording indicator pulses, because a record mark that simply sits there
+ * is read as an icon rather than as a state — and this one is only on the bar
+ * while it is true, so it has nothing beside it to be brighter than.
+ *
+ * Opacity, not colour. Red is what a recording light wants to be and this file
+ * cannot say so: narchy owns every colour in the bar and this stylesheet stays
+ * out of its way, which is the promise in the header. An animation on opacity
+ * breaks none of it — whatever colour the palette hands this module, it is that
+ * colour, fading.
+ *
+ * The module is hidden the rest of the time, so the animation only ever runs
+ * while a recording does. GTK does not tick keyframes on a widget that is not
+ * realised, which means no wakeup per frame on an idle bar.
+ */
+@keyframes recording-pulse {
+  from { opacity: 1; }
+  to   { opacity: 0.35; }
+}
+
+#custom-recording {
+  animation: recording-pulse 1.2s ease-in-out infinite alternate;
 }
 
 /* Even air above and below, and less of it.

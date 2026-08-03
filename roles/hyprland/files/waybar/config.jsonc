@@ -44,6 +44,7 @@
 
     "modules-left": ["hyprland/workspaces", "hyprland/submap"],
     "modules-right": [
+        "custom/recording",
         "pulseaudio",
         "bluetooth",
         "network",
@@ -59,6 +60,35 @@
     "hyprland/submap": {
         "format": "<span style=\"italic\">{}</span>",
         "tooltip": false
+    },
+
+    // Shows a record mark and the elapsed time while a recording is running,
+    // and nothing at all the rest of the time. The recorder binds in
+    // hyprland.lua deliberately notify nothing when they start — a notification
+    // is drawn over the screen being recorded and ends up in the clip — so this
+    // is the only thing that says a recording is in progress.
+    //
+    // First in modules-right, which is where it costs nothing. The group is
+    // packed against the right edge and grows leftwards, so a module appearing
+    // at the head of the list extends it to the left and every module already on
+    // it keeps its position. Anywhere else in the list, or anywhere in
+    // modules-left, the whole bar would shuffle sideways each time a recording
+    // starts or stops. The elapsed time gaining a digit moves only this
+    // module's own left edge, for the same reason.
+    //
+    // The script prints json and does the work of deciding whether anything is
+    // recording; format is "{}" so the mark and the time come from there and
+    // this file holds no private-use codepoint for it.
+    //
+    // A one second interval rather than a signal from the keybind. The start
+    // path cannot signal usefully — the recorder has to be running before the
+    // script can see it — and the stop path would race wf-recorder's exit.
+    // Polling costs a pgrep per second and is honest about both.
+    "custom/recording": {
+        "exec": "$HOME/.config/waybar/scripts/recording",
+        "return-type": "json",
+        "interval": 1,
+        "format": "{}"
     },
 
     // Percentages are padded to three columns, right aligned, so a module keeps

@@ -89,9 +89,11 @@
     mode: "0644"
   notify: Reload waybar
 
-# The click targets for the volume and bluetooth modules. Executable, and no
-# reload needed: waybar shells out to them fresh on every click.
-- name: Install the waybar menu scripts
+# What the bar shells out to: the click targets for the volume and bluetooth
+# modules, and the recording indicator's poll. Executable, and no reload needed
+# for any of them — waybar runs them fresh, on a click or on the interval, so an
+# edit here takes effect on the next one.
+- name: Install the waybar scripts
   tags: [hyprland-config]
   ansible.builtin.copy:
     src: "waybar/scripts/{{ item }}"
@@ -100,6 +102,7 @@
   loop:
     - audio-output
     - bluetooth
+    - recording
 
 # The stylesheet is shared with narchy, so it is assembled rather than owned:
 # seeded once from the stock one for waybar's own layout rules, then imported
