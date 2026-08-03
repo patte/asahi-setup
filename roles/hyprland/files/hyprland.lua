@@ -473,6 +473,55 @@ hl.bind(mainMod .. " + CTRL + P",  hl.dsp.exec_cmd(shotRegion))
 hl.bind("Print",         hl.dsp.exec_cmd(shotScreen))
 hl.bind("SHIFT + Print", hl.dsp.exec_cmd(shotRegion))
 
+-- Screen recording, on R with the same two modifiers the screenshots use on P:
+-- SHIFT for the whole screen, CTRL for a region. Plain SUPER + R is the
+-- launcher, so the modified pair was free, and the two capture keys ending up
+-- side by side is the point — one still, one moving, same fingers.
+--
+-- Both are the same toggle rather than a start bound here and a stop bound
+-- somewhere else. There is nowhere to press Ctrl-C: the recorder is started
+-- detached from any terminal, so a signal is the only way to end it, and it has
+-- to be INT. wf-recorder writes the mp4 index on a clean shutdown; killed with
+-- TERM it leaves a file with no index, which no player will open. pkill exits 0
+-- only when it actually signalled something, and that is what makes `||` a
+-- toggle: stop a running recording, otherwise start one. Either shortcut stops
+-- whatever is recording, which is what you want when you cannot remember which
+-- one you started it with.
+--
+-- The region variant keeps slurp's geometry in a variable and bails if the drag
+-- was cancelled with Escape, for the same reason the screenshot above does: an
+-- empty -g is worse than no recording. It is `|| exit` here and not the `&&`
+-- the screenshot uses, because there are four commands after this one and `&&`
+-- would only ever guard the first of them — the notification would still fire
+-- and the recorder would still start.
+--
+-- Software encoding, hence ultrafast. There is no video encode engine available
+-- here — the asahi GPU node does no encode and Apple's encoder has no driver —
+-- so every frame goes through the CPU, and the panel is 2880x1800. crf 25 at
+-- ultrafast makes chunky files but keeps up; a slower preset drops frames. The
+-- fallback if it ever does not is -F scale=1440:-2, not a better preset.
+--
+-- No -a: recording audio means naming a pipewire source, and the useful one
+-- (the sink monitor, i.e. what you are hearing) is not the default, so it would
+-- silently record the microphone instead. Add it by hand when a clip needs it.
+--
+-- The notifications are not decoration. Nothing on screen says a recording is
+-- running, so they are the only indicator there is. The second one is gated on
+-- the file being non-empty rather than on wf-recorder's exit status, since what
+-- it is really reporting is that there is something to play.
+local function recorder(region)
+    return "pkill -INT -x wf-recorder || { "
+        .. (region and 'geom=$(slurp) || exit; ' or "")
+        .. 'out="$HOME/Videos/recording-$(date +%Y%m%d-%H%M%S).mp4"; '
+        .. 'notify-send -a wf-recorder "Recording" "Same shortcut again to stop."; '
+        .. "wf-recorder " .. (region and '-g "$geom" ' or "")
+        .. '-c libx264 -p preset=ultrafast -p crf=25 -f "$out"; '
+        .. '[ -s "$out" ] && notify-send -a wf-recorder "Recording saved" "$(basename "$out")"; }'
+end
+
+hl.bind(mainMod .. " + SHIFT + R", hl.dsp.exec_cmd(recorder(false)))
+hl.bind(mainMod .. " + CTRL + R",  hl.dsp.exec_cmd(recorder(true)))
+
 -- Laptop keys. GNOME handles these itself; here they have to be bound.
 -- `locked` means they keep working with the screen locked.
 hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+"), { locked = true, repeating = true })

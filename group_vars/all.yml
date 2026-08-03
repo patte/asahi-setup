@@ -125,6 +125,7 @@ hyprland_packages:
   - mako
   - grim
   - slurp
+  - wf-recorder
   - wl-clipboard
   - brightnessctl
   - playerctl
