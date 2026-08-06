@@ -560,8 +560,9 @@ hl.layer_rule({
     -- The launcher opens with a long, off-centre swell without this, and the
     -- cause is not where it looks. wofi commits its layer surface twice: GTK
     -- puts up a 50x40 placeholder before it has measured anything, then resizes
-    -- to the real 976x496. Both are centred, so the geometry is never actually
-    -- wrong — what is wrong is the transition between them.
+    -- to the size it means to keep — wofi's default 50% by 40% of the screen.
+    -- Both are centred, so the geometry is never actually wrong — what is wrong
+    -- is the transition between them.
     --
     -- Hyprland animates that resize on the layers curve, and a layer's buffer is
     -- drawn 1:1 from the box's top-left and clipped, never scaled to fit. So the
